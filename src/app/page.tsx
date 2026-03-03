@@ -49,7 +49,7 @@ export default function Home() {
               width={16}
               height={16}
             />
-            Deploy Now
+            Deploys Now
           </a>
           <a
             className={styles.secondary}
