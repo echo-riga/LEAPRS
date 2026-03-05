@@ -12,6 +12,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TablePagination,
   Button,
   Chip,
   IconButton,
@@ -63,6 +64,10 @@ export function AdminUsersClient({ users }: { users: User[] }) {
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+
   const isEdit = !!selectedUser;
 
   function openAdd() {
@@ -121,11 +126,16 @@ export function AdminUsersClient({ users }: { users: User[] }) {
       setDeleteOpen(false);
       router.refresh();
     } catch (err: any) {
-      console.error("Delete failed:", err); // ← check browser console
+      console.error("Delete failed:", err);
       setError(err?.message ?? "Delete failed");
     }
     setLoading(false);
   }
+
+  const paginated = users.slice(
+    page * rowsPerPage,
+    page * rowsPerPage + rowsPerPage,
+  );
 
   return (
     <Box>
@@ -191,7 +201,7 @@ export function AdminUsersClient({ users }: { users: User[] }) {
                   </TableCell>
                 </TableRow>
               ) : (
-                users.map((user) => (
+                paginated.map((user) => (
                   <TableRow key={user.id} hover>
                     <TableCell>{user.name}</TableCell>
                     <TableCell>{user.email}</TableCell>
@@ -229,6 +239,23 @@ export function AdminUsersClient({ users }: { users: User[] }) {
             </TableBody>
           </Table>
         </TableContainer>
+
+        <TablePagination
+          component="div"
+          count={users.length}
+          page={page}
+          rowsPerPage={rowsPerPage}
+          onPageChange={(_, newPage) => setPage(newPage)}
+          onRowsPerPageChange={(e) => {
+            setRowsPerPage(parseInt(e.target.value, 10));
+            setPage(0);
+          }}
+          rowsPerPageOptions={[5, 10, 25]}
+          sx={{
+            borderTop: "1px solid #e8f5e9",
+            "& .MuiTablePagination-toolbar": { px: 2 },
+          }}
+        />
       </Paper>
 
       {/* Add / Edit Dialog */}

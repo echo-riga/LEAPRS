@@ -76,11 +76,10 @@ export function LoginClient() {
         />
         <Box sx={{ position: "relative", zIndex: 1, color: "white" }}>
           <Typography variant="h3" fontWeight={700} gutterBottom>
-            LEAF
+            LEAPRS
           </Typography>
           <Typography variant="body1" sx={{ opacity: 0.85, maxWidth: 400 }}>
-            Lifelong Education Advancement Framework — Training Requisition
-            System
+            Lifelong Education Advancement Program Requisition System
           </Typography>
         </Box>
       </Box>
@@ -107,7 +106,7 @@ export function LoginClient() {
             style={{ objectFit: "contain" }}
           />
           <Typography variant="h6" fontWeight={700} color="primary">
-            LEAF
+            LEAPRS
           </Typography>
         </Box>
 
@@ -197,7 +196,7 @@ export function LoginClient() {
           color="text.disabled"
           sx={{ mt: "auto", pt: 6, textAlign: "center" }}
         >
-          © {new Date().getFullYear()} LEAF. All rights reserved.
+          © {new Date().getFullYear()} LEAPRS. All rights reserved.
         </Typography>
       </Box>
     </Box>

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
 import {
   Box,
@@ -11,16 +11,24 @@ import {
   ListItemIcon,
   ListItemText,
   Divider,
+  IconButton,
+  Tooltip,
 } from "@mui/material";
 import {
   DashboardOutlined,
   PeopleOutlined,
   AssessmentOutlined,
   SettingsOutlined,
+  LogoutOutlined,
+  ArticleOutlined,
+  ListAltOutlined,
 } from "@mui/icons-material";
+import { authClient } from "@/lib/auth-client";
 
 const navItems = [
   { label: "Dashboard", href: "/admin", icon: <DashboardOutlined /> },
+  { label: "PPMP", href: "/admin/ppmp", icon: <ArticleOutlined /> },
+  { label: "Requests", href: "/admin/requests", icon: <ListAltOutlined /> },
   { label: "Users", href: "/admin/users", icon: <PeopleOutlined /> },
   { label: "Reports", href: "/admin/reports", icon: <AssessmentOutlined /> },
   { label: "Settings", href: "/admin/settings", icon: <SettingsOutlined /> },
@@ -28,6 +36,12 @@ const navItems = [
 
 export function AdminSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+
+  async function handleLogout() {
+    await authClient.signOut();
+    router.push("/login");
+  }
 
   return (
     <Box
@@ -48,7 +62,7 @@ export function AdminSidebar() {
       >
         <Image
           src="/login-logo.png"
-          alt="LEAP"
+          alt="LEAPRS"
           width={36}
           height={36}
           style={{ objectFit: "contain" }}
@@ -58,7 +72,7 @@ export function AdminSidebar() {
           fontWeight={700}
           sx={{ color: "white", letterSpacing: 1 }}
         >
-          LEAF
+          LEAPRS
         </Typography>
       </Box>
 
@@ -120,11 +134,31 @@ export function AdminSidebar() {
 
       <Divider sx={{ borderColor: "rgba(255,255,255,0.1)", my: 3 }} />
 
-      {/* Bottom */}
-      <Box sx={{ mt: "auto", px: 1 }}>
+      {/* Bottom — logout */}
+      <Box
+        sx={{
+          mt: "auto",
+          px: 1,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
         <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.3)" }}>
-          © {new Date().getFullYear()} LEAF
+          © {new Date().getFullYear()} LEAPRS
         </Typography>
+        <Tooltip title="Sign out">
+          <IconButton
+            onClick={handleLogout}
+            size="small"
+            sx={{
+              color: "rgba(255,255,255,0.5)",
+              "&:hover": { color: "white" },
+            }}
+          >
+            <LogoutOutlined fontSize="small" />
+          </IconButton>
+        </Tooltip>
       </Box>
     </Box>
   );
