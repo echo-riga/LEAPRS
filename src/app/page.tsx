@@ -1,12 +1,6 @@
-import { sql } from "@/lib/db";
+// app/page.tsx
+import { redirect } from "next/navigation";
 
-export default async function Page() {
-  const result = await sql`SELECT version()`;
-
-  return (
-    <div>
-      <h1>Connected to Neon!</h1>
-      <p>{result[0].version}</p>
-    </div>
-  );
+export default function Page() {
+  redirect("/login");
 }

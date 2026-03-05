@@ -9,8 +9,15 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/icons-material": "^7.3.9",
+    "@mui/material": "^7.3.9",
+    "@mui/material-nextjs": "^7.3.9",
     "@neondatabase/serverless": "^1.0.2",
+    "better-auth": "^1.5.3",
     "next": "16.1.6",
+    "pg": "^8.20.0",
     "react": "19.2.3",
     "react-dom": "19.2.3"
   },
