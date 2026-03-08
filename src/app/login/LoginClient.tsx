@@ -43,7 +43,7 @@ export function LoginClient() {
 
     const role = result.data?.user?.role;
     if (role === "admin") router.push("/admin");
-    else router.push("/dashboard");
+    else router.push("/user");
   }
 
   return (

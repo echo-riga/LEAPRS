@@ -1,35 +1,27 @@
-import { AdminSidebar } from "@/app/components/AdminSidebar";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { UserTopbar } from "@/app/components/UserTopbar";
 
-export default async function AdminLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) redirect("/login");
-  if (session.user.role !== "admin") redirect("/unauthorized");
+  if (session.user.role === "admin") redirect("/admin");
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", background: "#f0f4f0" }}>
-      <AdminSidebar
+    <div style={{ minHeight: "100vh", background: "#f0f4f0" }}>
+      <UserTopbar
         user={{
           name: session.user.name,
           email: session.user.email,
           role: session.user.role,
         }}
       />
-      <main
-        style={{
-          marginLeft: "260px",
-          flex: 1,
-          minHeight: "100vh",
-          overflowY: "auto",
-          padding: "32px",
-        }}
-      >
+      <main style={{ maxWidth: 1200, margin: "0 auto", padding: "32px 24px" }}>
         {children}
       </main>
     </div>

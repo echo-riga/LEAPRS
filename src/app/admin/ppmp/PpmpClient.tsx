@@ -11,14 +11,12 @@ import {
   Card,
   CardContent,
   CardActions,
-  Chip,
   IconButton,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
   TextField,
-  MenuItem,
   Alert,
   Tooltip,
   CircularProgress,
@@ -45,41 +43,6 @@ import type { PpmpEntry } from "./page";
 
 // ── constants ──────────────────────────────────────────────────────────────────
 
-const QUARTERS = ["Q1", "Q2", "Q3", "Q4"];
-const MONTHS = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
-const PILLARS = [
-  "Instruction",
-  "Research and Innovation",
-  "Extension and Community Service",
-  "Administration and Governance",
-  "Others",
-];
-const MFO_CATEGORIES = [
-  "Higher Education Services",
-  "Advanced Education Services",
-  "Research Services",
-  "Technical Advisory Extension Services",
-  "Others",
-];
-const INITIATIVE_LEVELS = [
-  "Institution-wide",
-  "College-Based",
-  "Department-Based",
-];
-
 const emptyForm = {
   aip_code: "",
   school_year: "",
@@ -96,9 +59,7 @@ const emptyForm = {
   milestone: "",
   budget_allocation: "",
   ppa_owner: "",
-  target_quarter: "",
-  target_month: "",
-  target_year: "",
+  target_implementation: "",
 };
 
 type FormState = typeof emptyForm;
@@ -111,8 +72,6 @@ function formatPeso(value: string | null) {
     maximumFractionDigits: 0,
   }).format(Number(value));
 }
-
-// ── section header inside dialog ───────────────────────────────────────────────
 
 function SectionLabel({ label }: { label: string }) {
   return (
@@ -186,9 +145,7 @@ function ViewDialog({
           key: "Budget Allocation",
           value: formatPeso(entry.budget_allocation),
         },
-        { key: "Target Quarter", value: entry.target_quarter },
-        { key: "Target Month", value: entry.target_month },
-        { key: "Target Year", value: entry.target_year },
+        { key: "Target Implementation", value: entry.target_implementation },
       ],
     },
   ];
@@ -253,7 +210,6 @@ function ViewDialog({
             </Grid>
           </Box>
         ))}
-
         <Box sx={{ mt: 1 }}>
           <Typography variant="caption" color="text.disabled">
             Created by {entry.created_by ?? "—"}
@@ -404,49 +360,31 @@ function EntryDialog({
             <TextField
               label="Initiative Level"
               variant="standard"
-              select
               fullWidth
               value={form.initiative_level}
               onChange={set("initiative_level")}
-            >
-              {INITIATIVE_LEVELS.map((v) => (
-                <MenuItem key={v} value={v}>
-                  {v}
-                </MenuItem>
-              ))}
-            </TextField>
+              placeholder="e.g. Institution-wide"
+            />
           </Grid>
           <Grid size={{ xs: 12, sm: 4 }}>
             <TextField
               label="MFO Category"
               variant="standard"
-              select
               fullWidth
               value={form.mfo_category}
               onChange={set("mfo_category")}
-            >
-              {MFO_CATEGORIES.map((v) => (
-                <MenuItem key={v} value={v}>
-                  {v}
-                </MenuItem>
-              ))}
-            </TextField>
+              placeholder="e.g. Higher Education Services"
+            />
           </Grid>
           <Grid size={{ xs: 12, sm: 4 }}>
             <TextField
               label="Pillar"
               variant="standard"
-              select
               fullWidth
               value={form.pillar}
               onChange={set("pillar")}
-            >
-              {PILLARS.map((v) => (
-                <MenuItem key={v} value={v}>
-                  {v}
-                </MenuItem>
-              ))}
-            </TextField>
+              placeholder="e.g. Instruction"
+            />
           </Grid>
           <Grid size={{ xs: 12, sm: 6 }}>
             <TextField
@@ -524,7 +462,7 @@ function EntryDialog({
         <SectionLabel label="IMPLEMENTATION" />
         <Divider sx={{ mb: 2, mt: 0.5, borderColor: "#e8f5e9" }} />
         <Grid container spacing={3}>
-          <Grid size={{ xs: 12, sm: 3 }}>
+          <Grid size={{ xs: 12, sm: 4 }}>
             <TextField
               label="Budget Allocation (PHP)"
               variant="standard"
@@ -535,46 +473,14 @@ function EntryDialog({
               slotProps={{ htmlInput: { min: 0, step: 100 } }}
             />
           </Grid>
-          <Grid size={{ xs: 12, sm: 3 }}>
+          <Grid size={{ xs: 12, sm: 8 }}>
             <TextField
-              label="Target Quarter"
-              variant="standard"
-              select
-              fullWidth
-              value={form.target_quarter}
-              onChange={set("target_quarter")}
-            >
-              {QUARTERS.map((v) => (
-                <MenuItem key={v} value={v}>
-                  {v}
-                </MenuItem>
-              ))}
-            </TextField>
-          </Grid>
-          <Grid size={{ xs: 12, sm: 3 }}>
-            <TextField
-              label="Target Month"
-              variant="standard"
-              select
-              fullWidth
-              value={form.target_month}
-              onChange={set("target_month")}
-            >
-              {MONTHS.map((v) => (
-                <MenuItem key={v} value={v}>
-                  {v}
-                </MenuItem>
-              ))}
-            </TextField>
-          </Grid>
-          <Grid size={{ xs: 12, sm: 3 }}>
-            <TextField
-              label="Target Year"
+              label="Target Implementation"
               variant="standard"
               fullWidth
-              value={form.target_year}
-              onChange={set("target_year")}
-              placeholder="e.g. 2025"
+              value={form.target_implementation}
+              onChange={set("target_implementation")}
+              placeholder="e.g. Q1 - January 2025"
             />
           </Grid>
         </Grid>
@@ -681,7 +587,6 @@ function PpmpCard({
       }}
     >
       <CardContent sx={{ flex: 1, p: 2.5 }}>
-        {/* AIP code + pillar chip */}
         <Box
           sx={{
             display: "flex",
@@ -704,17 +609,8 @@ function PpmpCard({
           >
             {entry.aip_code}
           </Typography>
-          {entry.target_quarter && (
-            <Chip
-              label={entry.target_quarter}
-              size="small"
-              variant="outlined"
-              sx={{ fontSize: 11, borderColor: "#c8e6c9", color: "#2e7d32" }}
-            />
-          )}
         </Box>
 
-        {/* PPA title */}
         <Typography
           variant="subtitle2"
           fontWeight={700}
@@ -730,7 +626,6 @@ function PpmpCard({
           {entry.ppa}
         </Typography>
 
-        {/* Meta rows */}
         <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <BusinessOutlined sx={{ fontSize: 14, color: "text.disabled" }} />
@@ -738,7 +633,6 @@ function PpmpCard({
               {entry.department}
             </Typography>
           </Box>
-
           {entry.pillar && (
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <CalendarMonthOutlined
@@ -749,7 +643,6 @@ function PpmpCard({
               </Typography>
             </Box>
           )}
-
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <AccountBalanceWalletOutlined
               sx={{ fontSize: 14, color: "text.disabled" }}
@@ -758,12 +651,11 @@ function PpmpCard({
               {formatPeso(entry.budget_allocation)}
             </Typography>
           </Box>
-
           {entry.school_year && (
             <Typography variant="caption" color="text.disabled">
               SY {entry.school_year}
-              {entry.target_month && entry.target_year
-                ? ` · ${entry.target_month} ${entry.target_year}`
+              {entry.target_implementation
+                ? ` · ${entry.target_implementation}`
                 : ""}
             </Typography>
           )}
@@ -820,6 +712,7 @@ export function PpmpClient({ entries }: { entries: PpmpEntry[] }) {
     page * rowsPerPage,
     page * rowsPerPage + rowsPerPage,
   );
+
   function openAdd() {
     setSelected(null);
     setForm(emptyForm);
@@ -845,9 +738,7 @@ export function PpmpClient({ entries }: { entries: PpmpEntry[] }) {
       milestone: entry.milestone ?? "",
       budget_allocation: entry.budget_allocation ?? "",
       ppa_owner: entry.ppa_owner ?? "",
-      target_quarter: entry.target_quarter ?? "",
-      target_month: entry.target_month ?? "",
-      target_year: entry.target_year ?? "",
+      target_implementation: entry.target_implementation ?? "",
     });
     setError(null);
     setOpen(true);
@@ -949,7 +840,7 @@ export function PpmpClient({ entries }: { entries: PpmpEntry[] }) {
         />
       </Box>
 
-      {/* Cards grid */}
+      {/* Cards */}
       {filtered.length === 0 ? (
         <Box
           sx={{
@@ -995,7 +886,6 @@ export function PpmpClient({ entries }: { entries: PpmpEntry[] }) {
               </Grid>
             ))}
           </Grid>
-
           <TablePagination
             component="div"
             count={filtered.length}
@@ -1016,7 +906,6 @@ export function PpmpClient({ entries }: { entries: PpmpEntry[] }) {
         </Box>
       )}
 
-      {/* Dialogs */}
       <ViewDialog
         open={viewOpen}
         entry={selected}
@@ -1026,7 +915,6 @@ export function PpmpClient({ entries }: { entries: PpmpEntry[] }) {
           if (selected) openEdit(selected);
         }}
       />
-
       <EntryDialog
         open={open}
         onClose={() => {
@@ -1040,7 +928,6 @@ export function PpmpClient({ entries }: { entries: PpmpEntry[] }) {
         loading={loading}
         error={error}
       />
-
       <DeleteDialog
         open={deleteOpen}
         onClose={() => setDeleteOpen(false)}

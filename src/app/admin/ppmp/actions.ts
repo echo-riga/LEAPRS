@@ -10,20 +10,18 @@ export async function createPpmpAction(data: {
   school_year: string;
   department: string;
   ppa: string;
-  initiative_level: string;
-  mfo_category: string;
-  pillar: string;
-  intended_outcome: string;
-  sdg_coding: string;
-  joint_initiative: string;
-  planned_outputs: string;
-  success_indicator: string;
-  milestone: string;
-  budget_allocation: string;
-  ppa_owner: string;
-  target_quarter: string;
-  target_month: string;
-  target_year: string;
+  initiative_level?: string;
+  mfo_category?: string;
+  pillar?: string;
+  intended_outcome?: string;
+  sdg_coding?: string;
+  joint_initiative?: string;
+  planned_outputs?: string;
+  success_indicator?: string;
+  milestone?: string;
+  budget_allocation?: string;
+  ppa_owner?: string;
+  target_implementation?: string;
 }) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session || session.user.role !== "admin") throw new Error("Forbidden");
@@ -33,14 +31,14 @@ export async function createPpmpAction(data: {
       aip_code, school_year, department, ppa, initiative_level,
       mfo_category, pillar, intended_outcome, sdg_coding, joint_initiative,
       planned_outputs, success_indicator, milestone, budget_allocation,
-      ppa_owner, target_quarter, target_month, target_year, created_by_id
+      ppa_owner, target_implementation, created_by_id
     ) VALUES (
       ${data.aip_code}, ${data.school_year}, ${data.department}, ${data.ppa},
-      ${data.initiative_level}, ${data.mfo_category}, ${data.pillar},
-      ${data.intended_outcome}, ${data.sdg_coding}, ${data.joint_initiative},
-      ${data.planned_outputs}, ${data.success_indicator}, ${data.milestone},
-      ${data.budget_allocation}, ${data.ppa_owner}, ${data.target_quarter},
-      ${data.target_month}, ${data.target_year}, ${session.user.id}
+      ${data.initiative_level ?? null}, ${data.mfo_category ?? null}, ${data.pillar ?? null},
+      ${data.intended_outcome ?? null}, ${data.sdg_coding ?? null}, ${data.joint_initiative ?? null},
+      ${data.planned_outputs ?? null}, ${data.success_indicator ?? null}, ${data.milestone ?? null},
+      ${data.budget_allocation ?? null}, ${data.ppa_owner ?? null},
+      ${data.target_implementation ?? null}, ${session.user.id}
     )
   `;
 
@@ -53,44 +51,40 @@ export async function updatePpmpAction(data: {
   school_year: string;
   department: string;
   ppa: string;
-  initiative_level: string;
-  mfo_category: string;
-  pillar: string;
-  intended_outcome: string;
-  sdg_coding: string;
-  joint_initiative: string;
-  planned_outputs: string;
-  success_indicator: string;
-  milestone: string;
-  budget_allocation: string;
-  ppa_owner: string;
-  target_quarter: string;
-  target_month: string;
-  target_year: string;
+  initiative_level?: string;
+  mfo_category?: string;
+  pillar?: string;
+  intended_outcome?: string;
+  sdg_coding?: string;
+  joint_initiative?: string;
+  planned_outputs?: string;
+  success_indicator?: string;
+  milestone?: string;
+  budget_allocation?: string;
+  ppa_owner?: string;
+  target_implementation?: string;
 }) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session || session.user.role !== "admin") throw new Error("Forbidden");
 
   await sql`
     UPDATE ppmp SET
-      school_year       = ${data.school_year},
-      department        = ${data.department},
-      ppa               = ${data.ppa},
-      initiative_level  = ${data.initiative_level},
-      mfo_category      = ${data.mfo_category},
-      pillar            = ${data.pillar},
-      intended_outcome  = ${data.intended_outcome},
-      sdg_coding        = ${data.sdg_coding},
-      joint_initiative  = ${data.joint_initiative},
-      planned_outputs   = ${data.planned_outputs},
-      success_indicator = ${data.success_indicator},
-      milestone         = ${data.milestone},
-      budget_allocation = ${data.budget_allocation},
-      ppa_owner         = ${data.ppa_owner},
-      target_quarter    = ${data.target_quarter},
-      target_month      = ${data.target_month},
-      target_year       = ${data.target_year},
-      updated_at        = NOW()
+      school_year            = ${data.school_year},
+      department             = ${data.department},
+      ppa                    = ${data.ppa},
+      initiative_level       = ${data.initiative_level ?? null},
+      mfo_category           = ${data.mfo_category ?? null},
+      pillar                 = ${data.pillar ?? null},
+      intended_outcome       = ${data.intended_outcome ?? null},
+      sdg_coding             = ${data.sdg_coding ?? null},
+      joint_initiative       = ${data.joint_initiative ?? null},
+      planned_outputs        = ${data.planned_outputs ?? null},
+      success_indicator      = ${data.success_indicator ?? null},
+      milestone              = ${data.milestone ?? null},
+      budget_allocation      = ${data.budget_allocation ?? null},
+      ppa_owner              = ${data.ppa_owner ?? null},
+      target_implementation  = ${data.target_implementation ?? null},
+      updated_at             = NOW()
     WHERE aip_code = ${data.aip_code}
   `;
 

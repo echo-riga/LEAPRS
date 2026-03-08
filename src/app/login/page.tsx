@@ -8,7 +8,7 @@ export default async function LoginPage() {
 
   if (session) {
     if (session.user.role === "admin") redirect("/admin");
-    else redirect("/dashboard");
+    else redirect("/user");
   }
 
   return <LoginClient />;

@@ -13,6 +13,7 @@ import {
   Divider,
   IconButton,
   Tooltip,
+  Avatar,
 } from "@mui/material";
 import {
   DashboardOutlined,
@@ -34,7 +35,20 @@ const navItems = [
   { label: "Settings", href: "/admin/settings", icon: <SettingsOutlined /> },
 ];
 
-export function AdminSidebar() {
+const ROLE_LABELS: Record<string, string> = {
+  admin: "Lifelong Head",
+  user: "Employee",
+};
+
+type Props = {
+  user: {
+    name: string;
+    email: string;
+    role: string;
+  };
+};
+
+export function AdminSidebar({ user }: Props) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -43,17 +57,27 @@ export function AdminSidebar() {
     router.push("/login");
   }
 
+  const initials = user.name
+    .split(" ")
+    .map((n) => n[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+
   return (
     <Box
       sx={{
         width: 260,
-        minHeight: "100vh",
+        height: "100vh",
+        position: "fixed",
+        top: 0,
+        left: 0,
         bgcolor: "#1b5e20",
         display: "flex",
         flexDirection: "column",
         py: 3,
         px: 2,
-        flexShrink: 0,
+        zIndex: 100,
       }}
     >
       {/* Logo */}
@@ -132,33 +156,80 @@ export function AdminSidebar() {
         })}
       </List>
 
-      <Divider sx={{ borderColor: "rgba(255,255,255,0.1)", my: 3 }} />
+      {/* Bottom — profile + logout */}
+      <Box sx={{ mt: "auto" }}>
+        <Divider sx={{ borderColor: "rgba(255,255,255,0.1)", mb: 2 }} />
 
-      {/* Bottom — logout */}
-      <Box
-        sx={{
-          mt: "auto",
-          px: 1,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.3)" }}>
-          © {new Date().getFullYear()} LEAPRS
-        </Typography>
-        <Tooltip title="Sign out">
-          <IconButton
-            onClick={handleLogout}
-            size="small"
+        {/* Profile row */}
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 1.5,
+            px: 1,
+            mb: 2,
+          }}
+        >
+          <Avatar
             sx={{
-              color: "rgba(255,255,255,0.5)",
-              "&:hover": { color: "white" },
+              width: 34,
+              height: 34,
+              bgcolor: "rgba(255,255,255,0.15)",
+              color: "white",
+              fontSize: 13,
+              fontWeight: 700,
+              flexShrink: 0,
             }}
           >
-            <LogoutOutlined fontSize="small" />
-          </IconButton>
-        </Tooltip>
+            {initials}
+          </Avatar>
+          <Box sx={{ overflow: "hidden" }}>
+            <Typography
+              variant="body2"
+              fontWeight={600}
+              sx={{
+                color: "white",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {user.name}
+            </Typography>
+            <Typography
+              variant="caption"
+              sx={{ color: "rgba(255,255,255,0.5)" }}
+            >
+              {ROLE_LABELS[user.role] ?? user.role}
+            </Typography>
+          </Box>
+        </Box>
+
+        {/* Copyright + logout */}
+        <Box
+          sx={{
+            px: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.3)" }}>
+            © {new Date().getFullYear()} LEAPRS
+          </Typography>
+          <Tooltip title="Sign out">
+            <IconButton
+              onClick={handleLogout}
+              size="small"
+              sx={{
+                color: "rgba(255,255,255,0.5)",
+                "&:hover": { color: "white" },
+              }}
+            >
+              <LogoutOutlined fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Box>
       </Box>
     </Box>
   );

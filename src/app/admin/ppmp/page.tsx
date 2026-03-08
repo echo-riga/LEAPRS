@@ -19,9 +19,7 @@ export type PpmpEntry = {
   milestone: string | null;
   budget_allocation: string | null;
   ppa_owner: string | null;
-  target_quarter: string | null;
-  target_month: string | null;
-  target_year: string | null;
+  target_implementation: string | null; // ← single field, matches DB
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -45,9 +43,7 @@ export default async function AdminPpmpPage() {
       p.milestone,
       p.budget_allocation,
       p.ppa_owner,
-      p.target_quarter,
-      p.target_month,
-      p.target_year,
+      p.target_implementation,
       u.name AS created_by,
       p.created_at,
       p.updated_at
