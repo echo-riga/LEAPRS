@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   Box,
@@ -22,6 +22,13 @@ import {
   CircularProgress,
   Divider,
   InputAdornment,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  ListItemText,
+  ListItemSecondaryAction,
+  Popover,
 } from "@mui/material";
 import {
   AddOutlined,
@@ -38,15 +45,19 @@ import {
   createPpmpAction,
   updatePpmpAction,
   deletePpmpAction,
+  createDepartmentAction,
+  deleteDepartmentAction,
+  createSchoolYearAction,
+  deleteSchoolYearAction,
 } from "@/app/admin/ppmp/actions";
-import type { PpmpEntry } from "./page";
+import type { PpmpEntry, Department, SchoolYear } from "./page";
 
 // ── constants ──────────────────────────────────────────────────────────────────
 
 const emptyForm = {
   aip_code: "",
-  school_year: "",
-  department: "",
+  school_year_id: "",
+  department_id: "",
   ppa: "",
   initiative_level: "",
   mfo_category: "",
@@ -90,6 +101,171 @@ function SectionLabel({ label }: { label: string }) {
   );
 }
 
+// ── inline-addable dropdown ────────────────────────────────────────────────────
+function InlineDropdown({
+  label,
+  value,
+  onChange,
+  items,
+  onAdd,
+  onDelete,
+  addPlaceholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (id: string) => void;
+  items: { id: string; name: string }[];
+  onAdd: (name: string) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
+  addPlaceholder: string;
+}) {
+  const [newName, setNewName] = useState("");
+  const [adding, setAdding] = useState(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const open = Boolean(anchorEl);
+
+  const selectedItem = items.find((i) => i.id === value);
+
+  async function handleAdd() {
+    if (!newName.trim()) return;
+    setAdding(true);
+    await onAdd(newName.trim());
+    setNewName("");
+    setAdding(false);
+  }
+
+  async function handleDelete(id: string, e: React.MouseEvent) {
+    e.stopPropagation();
+    setDeleting(id);
+    await onDelete(id);
+    if (value === id) onChange("");
+    setDeleting(null);
+  }
+
+  function handleSelect(id: string) {
+    onChange(id);
+    setAnchorEl(null);
+  }
+
+  return (
+    <>
+      <FormControl variant="standard" fullWidth>
+        <InputLabel shrink>{label}</InputLabel>
+        <Box
+          onClick={(e) => setAnchorEl(e.currentTarget)}
+          sx={{
+            mt: "18px",
+            pb: 0.5,
+            borderBottom: "1px solid rgba(0,0,0,0.42)",
+            cursor: "pointer",
+            height: 30,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <Typography
+            variant="body1"
+            sx={{
+              color: value ? "text.primary" : "text.disabled",
+              fontSize: "1rem",
+            }}
+          >
+            {selectedItem?.name ?? ""}
+          </Typography>
+          <Box
+            component="span"
+            sx={{ color: "text.disabled", fontSize: 18, lineHeight: 1 }}
+          >
+            ▾
+          </Box>
+        </Box>
+      </FormControl>
+
+      <Popover
+        open={open}
+        anchorEl={anchorEl}
+        onClose={() => setAnchorEl(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+        transformOrigin={{ vertical: "top", horizontal: "left" }}
+        disableAutoFocus
+        disableEnforceFocus
+        PaperProps={{
+          sx: {
+            width: anchorEl?.offsetWidth ?? 200,
+            maxHeight: 360,
+            overflow: "auto",
+          },
+        }}
+      >
+        {items.map((item) => (
+          <MenuItem
+            key={item.id}
+            selected={item.id === value}
+            onClick={() => handleSelect(item.id)}
+            sx={{ pr: 5, position: "relative" }}
+          >
+            <ListItemText primary={item.name} />
+            <ListItemSecondaryAction>
+              <IconButton
+                edge="end"
+                size="small"
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => handleDelete(item.id, e)}
+                disabled={deleting === item.id}
+                sx={{
+                  color: "text.disabled",
+                  "&:hover": { color: "error.main" },
+                }}
+              >
+                {deleting === item.id ? (
+                  <CircularProgress size={12} />
+                ) : (
+                  <CloseOutlined sx={{ fontSize: 14 }} />
+                )}
+              </IconButton>
+            </ListItemSecondaryAction>
+          </MenuItem>
+        ))}
+
+        <Divider />
+        <Box
+          sx={{ px: 2, py: 1.5, display: "flex", gap: 1, alignItems: "center" }}
+        >
+          <TextField
+            inputRef={inputRef}
+            size="small"
+            variant="standard"
+            placeholder={addPlaceholder}
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleAdd();
+            }}
+            sx={{ flex: 1 }}
+            autoComplete="off"
+          />
+          <IconButton
+            size="small"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={handleAdd}
+            disabled={adding || !newName.trim()}
+            sx={{ color: "#2e7d32" }}
+          >
+            {adding ? (
+              <CircularProgress size={14} />
+            ) : (
+              <AddOutlined fontSize="small" />
+            )}
+          </IconButton>
+        </Box>
+      </Popover>
+    </>
+  );
+}
+
 // ── view dialog ────────────────────────────────────────────────────────────────
 
 function ViewDialog({
@@ -105,16 +281,13 @@ function ViewDialog({
 }) {
   if (!entry) return null;
 
-  const sections: {
-    label: string;
-    fields: { key: string; value: string | null }[];
-  }[] = [
+  const sections = [
     {
       label: "BASIC INFORMATION",
       fields: [
         { key: "AIP Code", value: entry.aip_code },
-        { key: "School Year", value: entry.school_year },
-        { key: "Department", value: entry.department },
+        { key: "School Year", value: entry.school_year_name },
+        { key: "Department", value: entry.department_name },
         { key: "PPA", value: entry.ppa },
         { key: "PPA Owner", value: entry.ppa_owner },
       ],
@@ -145,7 +318,10 @@ function ViewDialog({
           key: "Budget Allocation",
           value: formatPeso(entry.budget_allocation),
         },
-        { key: "Target Implementation", value: entry.target_implementation },
+        {
+          key: "Target Implementation (Quarter/Month/Year)",
+          value: entry.target_implementation,
+        },
       ],
     },
   ];
@@ -210,11 +386,9 @@ function ViewDialog({
             </Grid>
           </Box>
         ))}
-        <Box sx={{ mt: 1 }}>
-          <Typography variant="caption" color="text.disabled">
-            Created by {entry.created_by ?? "—"}
-          </Typography>
-        </Box>
+        <Typography variant="caption" color="text.disabled">
+          Created by {entry.created_by ?? "—"}
+        </Typography>
       </DialogContent>
 
       <DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
@@ -244,6 +418,12 @@ function EntryDialog({
   isEdit,
   loading,
   error,
+  departments,
+  schoolYears,
+  onAddDepartment,
+  onDeleteDepartment,
+  onAddSchoolYear,
+  onDeleteSchoolYear,
 }: {
   open: boolean;
   onClose: () => void;
@@ -253,6 +433,12 @@ function EntryDialog({
   isEdit: boolean;
   loading: boolean;
   error: string | null;
+  departments: Department[];
+  schoolYears: SchoolYear[];
+  onAddDepartment: (name: string) => Promise<void>;
+  onDeleteDepartment: (id: string) => Promise<void>;
+  onAddSchoolYear: (name: string) => Promise<void>;
+  onDeleteSchoolYear: (id: string) => Promise<void>;
 }) {
   function set(field: keyof FormState) {
     return (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -311,24 +497,25 @@ function EntryDialog({
             />
           </Grid>
           <Grid size={{ xs: 12, sm: 4 }}>
-            <TextField
+            <InlineDropdown
               label="School Year"
-              variant="standard"
-              fullWidth
-              value={form.school_year}
-              onChange={set("school_year")}
-              placeholder="e.g. 2025-2026"
-              required
+              value={form.school_year_id}
+              onChange={(id) => setForm({ ...form, school_year_id: id })}
+              items={schoolYears}
+              onAdd={onAddSchoolYear}
+              onDelete={onDeleteSchoolYear}
+              addPlaceholder="e.g. 2025-2026"
             />
           </Grid>
           <Grid size={{ xs: 12, sm: 4 }}>
-            <TextField
-              label="Responsible College/Department"
-              variant="standard"
-              fullWidth
-              value={form.department}
-              onChange={set("department")}
-              required
+            <InlineDropdown
+              label="Responsible Department"
+              value={form.department_id}
+              onChange={(id) => setForm({ ...form, department_id: id })}
+              items={departments}
+              onAdd={onAddDepartment}
+              onDelete={onDeleteDepartment}
+              addPlaceholder="e.g. College of Education"
             />
           </Grid>
           <Grid size={{ xs: 12, sm: 8 }}>
@@ -475,7 +662,7 @@ function EntryDialog({
           </Grid>
           <Grid size={{ xs: 12, sm: 8 }}>
             <TextField
-              label="Target Implementation"
+              label="Target Implementation (Quarter/Month/Year)"
               variant="standard"
               fullWidth
               value={form.target_implementation}
@@ -630,7 +817,7 @@ function PpmpCard({
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <BusinessOutlined sx={{ fontSize: 14, color: "text.disabled" }} />
             <Typography variant="caption" color="text.secondary" noWrap>
-              {entry.department}
+              {entry.department_name ?? "—"}
             </Typography>
           </Box>
           {entry.pillar && (
@@ -651,9 +838,9 @@ function PpmpCard({
               {formatPeso(entry.budget_allocation)}
             </Typography>
           </Box>
-          {entry.school_year && (
+          {entry.school_year_name && (
             <Typography variant="caption" color="text.disabled">
-              SY {entry.school_year}
+              SY {entry.school_year_name}
               {entry.target_implementation
                 ? ` · ${entry.target_implementation}`
                 : ""}
@@ -687,10 +874,26 @@ function PpmpCard({
 
 // ── main client ────────────────────────────────────────────────────────────────
 
-export function PpmpClient({ entries }: { entries: PpmpEntry[] }) {
+export function PpmpClient({
+  entries: initialEntries,
+  departments: initialDepartments,
+  schoolYears: initialSchoolYears,
+}: {
+  entries: PpmpEntry[];
+  departments: Department[];
+  schoolYears: SchoolYear[];
+}) {
   const router = useRouter();
 
+  const [departments, setDepartments] =
+    useState<Department[]>(initialDepartments);
+  const [schoolYears, setSchoolYears] =
+    useState<SchoolYear[]>(initialSchoolYears);
+
   const [search, setSearch] = useState("");
+  const [filterDept, setFilterDept] = useState("");
+  const [filterSY, setFilterSY] = useState("");
+
   const [open, setOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
@@ -702,12 +905,40 @@ export function PpmpClient({ entries }: { entries: PpmpEntry[] }) {
   const [rowsPerPage, setRowsPerPage] = useState(6);
   const isEdit = !!selected && open;
 
-  const filtered = entries.filter(
-    (e) =>
+  async function handleAddDepartment(name: string) {
+    await createDepartmentAction(name);
+    setDepartments((prev) => [...prev, { id: "__pending__", name }]);
+    router.refresh();
+  }
+
+  async function handleDeleteDepartment(id: string) {
+    await deleteDepartmentAction(id);
+    setDepartments((prev) => prev.filter((d) => d.id !== id));
+    router.refresh();
+  }
+
+  async function handleAddSchoolYear(name: string) {
+    await createSchoolYearAction(name);
+    setSchoolYears((prev) => [...prev, { id: "__pending__", name }]);
+    router.refresh();
+  }
+
+  async function handleDeleteSchoolYear(id: string) {
+    await deleteSchoolYearAction(id);
+    setSchoolYears((prev) => prev.filter((s) => s.id !== id));
+    router.refresh();
+  }
+
+  const filtered = initialEntries.filter((e) => {
+    const matchSearch =
+      !search ||
       e.aip_code.toLowerCase().includes(search.toLowerCase()) ||
-      e.ppa.toLowerCase().includes(search.toLowerCase()) ||
-      e.department.toLowerCase().includes(search.toLowerCase()),
-  );
+      e.ppa.toLowerCase().includes(search.toLowerCase());
+    const matchDept = !filterDept || e.department_id === filterDept;
+    const matchSY = !filterSY || e.school_year_id === filterSY;
+    return matchSearch && matchDept && matchSY;
+  });
+
   const paginated = filtered.slice(
     page * rowsPerPage,
     page * rowsPerPage + rowsPerPage,
@@ -724,8 +955,8 @@ export function PpmpClient({ entries }: { entries: PpmpEntry[] }) {
     setSelected(entry);
     setForm({
       aip_code: entry.aip_code,
-      school_year: entry.school_year,
-      department: entry.department,
+      school_year_id: entry.school_year_id ?? "",
+      department_id: entry.department_id ?? "",
       ppa: entry.ppa,
       initiative_level: entry.initiative_level ?? "",
       mfo_category: entry.mfo_category ?? "",
@@ -758,7 +989,7 @@ export function PpmpClient({ entries }: { entries: PpmpEntry[] }) {
     setLoading(true);
     setError(null);
     try {
-      if (isEdit && selected) {
+      if (isEdit) {
         await updatePpmpAction(form);
       } else {
         await createPpmpAction(form);
@@ -813,10 +1044,18 @@ export function PpmpClient({ entries }: { entries: PpmpEntry[] }) {
         </Button>
       </Box>
 
-      {/* Search */}
-      <Box sx={{ mb: 3 }}>
+      {/* Filters */}
+      <Box
+        sx={{
+          display: "flex",
+          gap: 2,
+          mb: 3,
+          flexWrap: "wrap",
+          alignItems: "flex-end",
+        }}
+      >
         <TextField
-          placeholder="Search by AIP code, PPA, or department…"
+          placeholder="Search AIP code or PPA…"
           value={search}
           onChange={(e) => {
             setSearch(e.target.value);
@@ -824,7 +1063,7 @@ export function PpmpClient({ entries }: { entries: PpmpEntry[] }) {
           }}
           size="small"
           variant="outlined"
-          sx={{ width: 360, "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
+          sx={{ width: 280, "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
           slotProps={{
             input: {
               startAdornment: (
@@ -838,6 +1077,61 @@ export function PpmpClient({ entries }: { entries: PpmpEntry[] }) {
             },
           }}
         />
+        <FormControl size="small" sx={{ minWidth: 200 }}>
+          <InputLabel shrink>Department</InputLabel>
+          <Select
+            value={filterDept}
+            label="Department"
+            displayEmpty
+            onChange={(e) => {
+              setFilterDept(e.target.value);
+              setPage(0);
+            }}
+            sx={{ borderRadius: 2 }}
+          >
+            <MenuItem value="">All Departments</MenuItem>
+            {departments.map((d) => (
+              <MenuItem key={d.id} value={d.id}>
+                {d.name}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+
+        <FormControl size="small" sx={{ minWidth: 160 }}>
+          <InputLabel shrink>School Year</InputLabel>
+          <Select
+            value={filterSY}
+            label="School Year"
+            displayEmpty
+            onChange={(e) => {
+              setFilterSY(e.target.value);
+              setPage(0);
+            }}
+            sx={{ borderRadius: 2 }}
+          >
+            <MenuItem value="">All Years</MenuItem>
+            {schoolYears.map((s) => (
+              <MenuItem key={s.id} value={s.id}>
+                {s.name}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        {(search || filterDept || filterSY) && (
+          <Button
+            size="small"
+            onClick={() => {
+              setSearch("");
+              setFilterDept("");
+              setFilterSY("");
+              setPage(0);
+            }}
+            sx={{ textTransform: "none", color: "text.secondary" }}
+          >
+            Clear filters
+          </Button>
+        )}
       </Box>
 
       {/* Cards */}
@@ -849,15 +1143,14 @@ export function PpmpClient({ entries }: { entries: PpmpEntry[] }) {
             flexDirection: "column",
             alignItems: "center",
             gap: 2,
-            color: "text.secondary",
           }}
         >
-          <Typography variant="body1" fontWeight={500}>
-            {entries.length === 0
+          <Typography variant="body1" fontWeight={500} color="text.secondary">
+            {initialEntries.length === 0
               ? "No PPMP entries yet."
-              : "No entries match your search."}
+              : "No entries match your filters."}
           </Typography>
-          {entries.length === 0 && (
+          {initialEntries.length === 0 && (
             <Button
               variant="contained"
               startIcon={<AddOutlined />}
@@ -927,6 +1220,12 @@ export function PpmpClient({ entries }: { entries: PpmpEntry[] }) {
         isEdit={isEdit}
         loading={loading}
         error={error}
+        departments={departments}
+        schoolYears={schoolYears}
+        onAddDepartment={handleAddDepartment}
+        onDeleteDepartment={handleDeleteDepartment}
+        onAddSchoolYear={handleAddSchoolYear}
+        onDeleteSchoolYear={handleDeleteSchoolYear}
       />
       <DeleteDialog
         open={deleteOpen}

@@ -12,11 +12,7 @@ import {
   Divider,
   IconButton,
 } from "@mui/material";
-import {
-  AddOutlined,
-  KeyboardArrowDownOutlined,
-  LogoutOutlined,
-} from "@mui/icons-material";
+import { KeyboardArrowDownOutlined, LogoutOutlined } from "@mui/icons-material";
 import { authClient } from "@/lib/auth-client";
 import { useState } from "react";
 
@@ -76,24 +72,6 @@ export function UserTopbar({ user }: Props) {
           LEAPRS
         </Typography>
       </Box>
-
-      {/* New Request button */}
-      <Button
-        variant="contained"
-        size="small"
-        startIcon={<AddOutlined />}
-        onClick={() => router.push("/dashboard/requests/new")}
-        sx={{
-          bgcolor: "#2e7d32",
-          "&:hover": { bgcolor: "#1b5e20" },
-          borderRadius: 2,
-          textTransform: "none",
-          fontWeight: 600,
-          px: 2,
-        }}
-      >
-        New Request
-      </Button>
 
       {/* Avatar + dropdown */}
       <Box
