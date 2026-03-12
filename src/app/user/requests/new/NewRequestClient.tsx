@@ -128,6 +128,7 @@ function SectionLabel({ label }: { label: string }) {
 
 export function NewRequestClient({ entry }: { entry: PpmpDetail }) {
   const router = useRouter();
+  const [uploadStatus, setUploadStatus] = useState<string>("");
   const [type, setType] = useState<"external" | "in-house">("external");
   const [trainingStart, setTrainingStart] = useState("");
   const [trainingEnd, setTrainingEnd] = useState("");
@@ -159,6 +160,20 @@ export function NewRequestClient({ entry }: { entry: PpmpDetail }) {
   const uploadedKeys = uploads.map((u) => u.key);
   const missingRequired = requiredKeys.filter((k) => !uploadedKeys.includes(k));
   const allRequiredUploaded = missingRequired.length === 0;
+  const FILE_LABELS: Record<string, string> = {
+    activity_design: "Activity Design",
+    attendees: "Attendees",
+    market_study: "Market Study",
+    tor: "Terms of Reference (TOR)",
+    transportation: "Transportation",
+    dte_travel: "DTE Travel Allowance (EO 77)",
+    bir: "BIR",
+    invitation_training: "Invitation Training",
+    invitation_speaker: "Invitation Letter CV Honorarium Acceptance",
+    capdev_budget: "CapDev Budget",
+    lb_form: "LB Form",
+  };
+
   async function handleSubmit() {
     if (!allRequiredUploaded) {
       setError("Please upload all required documents before submitting.");
@@ -173,23 +188,62 @@ export function NewRequestClient({ entry }: { entry: PpmpDetail }) {
     setError(null);
 
     try {
-      const formData = new FormData();
-      formData.append("ppmpId", entry.id);
-      formData.append("type", type);
-      formData.append("trainingStart", trainingStart);
-      formData.append("trainingEnd", trainingEnd);
-      formData.append("remarks", remarks);
+      // 1. create folder on Drive + get access token
+      setUploadStatus("Creating folder on Google Drive…");
+      const folderDate = new Date().toISOString().split("T")[0];
+      const folderName = `${folderDate} - Request`;
 
-      for (const { key, file } of uploads) {
-        formData.append(key, file);
+      const initRes = await fetch("/api/drive/init", { method: "POST" });
+      if (!initRes.ok) throw new Error("Failed to create Drive folder");
+      const { folderId, accessToken } = await initRes.json();
+
+      // 2. upload each file directly from browser to Drive
+      for (let i = 0; i < uploads.length; i++) {
+        const { key, file } = uploads[i];
+        const label = FILE_LABELS[key] ?? key;
+        const ext = file.name.split(".").pop() ?? "bin";
+        const name = `${label}.${ext}`;
+
+        setUploadStatus(`Uploading ${i + 1}/${uploads.length}: ${name}…`);
+
+        const metadata = JSON.stringify({ name, parents: [folderId] });
+        const form = new FormData();
+        form.append(
+          "metadata",
+          new Blob([metadata], { type: "application/json" }),
+        );
+        form.append("file", file);
+
+        const uploadRes = await fetch(
+          "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",
+          {
+            method: "POST",
+            headers: { Authorization: `Bearer ${accessToken}` },
+            body: form,
+          },
+        );
+        if (!uploadRes.ok) throw new Error(`Failed to upload ${name}`);
       }
 
-      await submitTrainingRequest(formData);
+      // 3. save to DB
+      setUploadStatus("Saving request…");
+      const folderUrl = `https://drive.google.com/drive/folders/${folderId}`;
+      const { requestId } = await submitTrainingRequest({
+        ppmpId: entry.id,
+        type,
+        trainingStart,
+        trainingEnd,
+        remarks,
+        folderUrl,
+      });
+
       setSubmitted(true);
-      setLoading(false); // ← add this before push
+      setLoading(false);
+      router.push(`/user/requests/${requestId}`);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Something went wrong");
       setLoading(false);
+      setUploadStatus("");
     }
   }
   return (
@@ -597,10 +651,16 @@ export function NewRequestClient({ entry }: { entry: PpmpDetail }) {
                   bgcolor: "#2e7d32",
                   "&:hover": { bgcolor: "#1b5e20" },
                   px: 4,
+                  minWidth: 180,
                 }}
               >
                 {loading ? (
-                  <CircularProgress size={18} color="inherit" />
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <CircularProgress size={14} color="inherit" />
+                    <Typography variant="caption" color="inherit" noWrap>
+                      {uploadStatus || "Processing…"}
+                    </Typography>
+                  </Box>
                 ) : submitted ? (
                   "Submitted"
                 ) : (
