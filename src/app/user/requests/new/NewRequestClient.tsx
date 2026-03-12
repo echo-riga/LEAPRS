@@ -184,8 +184,9 @@ export function NewRequestClient({ entry }: { entry: PpmpDetail }) {
         formData.append(key, file);
       }
 
-      const { requestId } = await submitTrainingRequest(formData);
+      await submitTrainingRequest(formData);
       setSubmitted(true);
+      setLoading(false); // ← add this before push
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Something went wrong");
       setLoading(false);
