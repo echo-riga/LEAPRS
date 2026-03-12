@@ -85,14 +85,6 @@ const STATUS_META: Record<
   completed: { label: "Completed", color: "success" },
 };
 
-const [greeting, setGreeting] = useState("Hello");
-
-useEffect(() => {
-  const h = new Date().getHours();
-  if (h < 12) setGreeting("Good morning");
-  else if (h < 18) setGreeting("Good afternoon");
-  else setGreeting("Good evening");
-}, []);
 // ── ppmp card ─────────────────────────────────────────────────────────────────
 
 function PpmpCard({
@@ -518,7 +510,15 @@ export function DashboardClient({
 }: Props) {
   const router = useRouter();
   const [tab, setTab] = useState(0);
+  const [greeting, setGreeting] = useState("Hello"); // ← inside here
 
+  useEffect(() => {
+    // ← inside here
+    const h = new Date().getHours();
+    if (h < 12) setGreeting("Good morning");
+    else if (h < 18) setGreeting("Good afternoon");
+    else setGreeting("Good evening");
+  }, []);
   // ppmp filters
   const [search, setSearch] = useState("");
   const [filterDept, setFilterDept] = useState("");
