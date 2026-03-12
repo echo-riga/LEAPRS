@@ -35,8 +35,8 @@ import {
   VisibilityOutlined,
 } from "@mui/icons-material";
 import { useState } from "react";
-
 export type PpmpSummary = {
+  id: string; // add this
   aip_code: string;
   ppa: string;
   department: string | null;
@@ -48,8 +48,8 @@ export type PpmpSummary = {
   planned_outputs: string | null;
   ppa_owner: string | null;
   target_implementation: string | null;
+  has_active_request: boolean; // add this
 };
-
 export type TrainingRequest = {
   id: string;
   aip_code: string;
@@ -229,31 +229,22 @@ function PpmpCard({
         >
           View Details
         </Button>
-        {alreadyRequested ? (
-          <Chip
-            label="Requested ✓"
-            size="small"
-            color="success"
-            variant="outlined"
-            sx={{ fontWeight: 600 }}
-          />
-        ) : (
-          <Button
-            size="small"
-            variant="contained"
-            onClick={onRequest}
-            sx={{
-              bgcolor: "#2e7d32",
-              "&:hover": { bgcolor: "#1b5e20" },
-              borderRadius: 2,
-              textTransform: "none",
-              fontWeight: 600,
-              fontSize: 12,
-            }}
-          >
-            Request This
-          </Button>
-        )}
+        <Button
+          size="small"
+          variant="contained"
+          disabled={entry.has_active_request}
+          onClick={onRequest}
+          sx={{
+            textTransform: "none",
+            fontSize: 12,
+            borderRadius: 2,
+            bgcolor: entry.has_active_request ? undefined : "#2e7d32",
+            "&:hover": { bgcolor: "#1b5e20" },
+            color: "white",
+          }}
+        >
+          {entry.has_active_request ? "Requested" : "Request This"}
+        </Button>
       </CardActions>
     </Card>
   );

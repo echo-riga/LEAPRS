@@ -135,6 +135,7 @@ export function NewRequestClient({ entry }: { entry: PpmpDetail }) {
   const [uploads, setUploads] = useState<UploadedFile[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [submitted, setSubmitted] = useState(false);
 
   const activeReqs = PRE_REQUIREMENTS.filter((r) => r.for.includes(type));
 
@@ -184,7 +185,7 @@ export function NewRequestClient({ entry }: { entry: PpmpDetail }) {
       }
 
       const { requestId } = await submitTrainingRequest(formData);
-      router.push(`/user/requests/${requestId}`);
+      setSubmitted(true);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Something went wrong");
       setLoading(false);
@@ -585,10 +586,11 @@ export function NewRequestClient({ entry }: { entry: PpmpDetail }) {
               >
                 Cancel
               </Button>
+
               <Button
                 variant="contained"
                 onClick={handleSubmit}
-                disabled={loading || !allRequiredUploaded}
+                disabled={loading || !allRequiredUploaded || submitted}
                 sx={{
                   textTransform: "none",
                   bgcolor: "#2e7d32",
@@ -598,6 +600,8 @@ export function NewRequestClient({ entry }: { entry: PpmpDetail }) {
               >
                 {loading ? (
                   <CircularProgress size={18} color="inherit" />
+                ) : submitted ? (
+                  "Submitted"
                 ) : (
                   "Submit Request"
                 )}
