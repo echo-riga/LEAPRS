@@ -33,7 +33,7 @@ import {
   AttachFileOutlined,
 } from "@mui/icons-material";
 import type { PpmpDetail } from "./page";
-
+import { submitTrainingRequest } from "./action";
 // ── pre-requirement definitions ───────────────────────────────────────────────
 
 type PreReq = {
@@ -158,23 +158,38 @@ export function NewRequestClient({ entry }: { entry: PpmpDetail }) {
   const uploadedKeys = uploads.map((u) => u.key);
   const missingRequired = requiredKeys.filter((k) => !uploadedKeys.includes(k));
   const allRequiredUploaded = missingRequired.length === 0;
-
   async function handleSubmit() {
     if (!allRequiredUploaded) {
       setError("Please upload all required documents before submitting.");
       return;
     }
+    if (!trainingStart || !trainingEnd) {
+      setError("Please set both training start and end dates.");
+      return;
+    }
+
     setLoading(true);
     setError(null);
+
     try {
-      // action will be wired later — files will be uploaded to GDrive and linked
-      router.push("/user");
+      const formData = new FormData();
+      formData.append("ppmpId", entry.id);
+      formData.append("type", type);
+      formData.append("trainingStart", trainingStart);
+      formData.append("trainingEnd", trainingEnd);
+      formData.append("remarks", remarks);
+
+      for (const { key, file } of uploads) {
+        formData.append(key, file);
+      }
+
+      const { requestId } = await submitTrainingRequest(formData);
+      router.push(`/user/requests/${requestId}`);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Something went wrong");
+      setLoading(false);
     }
-    setLoading(false);
   }
-
   return (
     <Box>
       <Button
