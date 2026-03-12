@@ -34,7 +34,7 @@ import {
   SearchOutlined,
   VisibilityOutlined,
 } from "@mui/icons-material";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 export type PpmpSummary = {
   id: string; // add this
   aip_code: string;
@@ -85,13 +85,14 @@ const STATUS_META: Record<
   completed: { label: "Completed", color: "success" },
 };
 
-function getGreeting() {
-  const h = new Date().getHours();
-  if (h < 12) return "Good morning";
-  if (h < 18) return "Good afternoon";
-  return "Good evening";
-}
+const [greeting, setGreeting] = useState("Hello");
 
+useEffect(() => {
+  const h = new Date().getHours();
+  if (h < 12) setGreeting("Good morning");
+  else if (h < 18) setGreeting("Good afternoon");
+  else setGreeting("Good evening");
+}, []);
 // ── ppmp card ─────────────────────────────────────────────────────────────────
 
 function PpmpCard({
@@ -573,7 +574,7 @@ export function DashboardClient({
       {/* Greeting */}
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" fontWeight={700} color="#1b5e20">
-          {getGreeting()}, {user.name.split(" ")[0]}!
+          {greeting}, {user.name.split(" ")[0]}!
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
           {user.department
