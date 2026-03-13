@@ -239,7 +239,6 @@ export function NewRequestClient({ entry }: { entry: PpmpDetail }) {
 
       setSubmitted(true);
       setLoading(false);
-      router.push(`/user/requests/${requestId}`);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Something went wrong");
       setLoading(false);
