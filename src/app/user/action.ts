@@ -1,4 +1,3 @@
-// src/app/dashboard/actions.ts
 "use server";
 
 import { headers } from "next/headers";
@@ -6,128 +5,64 @@ import { auth } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 
-// Types matching your DashboardClient
-export type PpmpSummary = {
-  aip_code: string;
-  ppa: string;
-  department: string;
-  pillar: string | null;
-  target_quarter: string | null;
-  target_month: string | null;
-  target_year: string | null;
-};
-
-export type TrainingRequest = {
-  id: string;
-  aip_code: string;
-  ppa: string;
-  type: "External" | "In-house";
-  status: "pending" | "approved" | "rejected" | "completed";
-  submitted_at: string;
-  remarks: string | null;
-};
-
-/**
- * Get current user's session and info
- */
-async function getUserSession() {
+export async function fetchMyRequestTrack(requestId: string) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) throw new Error("Unauthorized");
-  return session;
+
+  return (await sql`
+    SELECT id, office, status, file_url, remarks, actioned_at
+    FROM request_status_track
+    WHERE request_id = ${requestId}
+    ORDER BY actioned_at ASC
+  `) as unknown as {
+    id: string;
+    office: string | null;
+    status: string;
+    file_url: string | null;
+    remarks: string | null;
+    actioned_at: string;
+  }[];
 }
 
-/**
- * Fetch PPMP entries available for the current user
- */
-export async function getAvailablePpmpEntries() {
-  try {
-    const session = await getUserSession();
+export async function submitPostCompletionDocs(data: {
+  requestId: string;
+  folderUrl: string;
+}) {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) throw new Error("Unauthorized");
 
-    const entries = (await sql`
-      SELECT 
-        p.aip_code,
-        p.ppa,
-        d.name as department,
-        p.pillar,
-        NULL as target_quarter,
-        NULL as target_month,
-        NULL as target_year
-      FROM ppmp p
-      JOIN departments d ON p.department_id = d.id
-      WHERE p.school_year_id = (
-        SELECT id FROM school_years ORDER BY name DESC LIMIT 1
-      )
-      ORDER BY p.created_at DESC
-    `) as unknown as PpmpSummary[];
+  // verify this request belongs to the user
+  const [request] = (await sql`
+    SELECT id FROM training_requests
+    WHERE id = ${data.requestId}
+      AND requested_by_id = ${session.user.id}
+  `) as unknown as { id: string }[];
 
-    return { entries, error: null };
-  } catch (error) {
-    return { entries: [], error: "Failed to fetch programs" };
+  if (!request) throw new Error("Request not found");
+
+  // verify current latest status is pending_completion_docs
+  const [latest] = (await sql`
+    SELECT status FROM request_status_track
+    WHERE request_id = ${data.requestId}
+    ORDER BY actioned_at DESC
+    LIMIT 1
+  `) as unknown as { status: string }[];
+
+  if (latest?.status !== "pending_completion_docs") {
+    throw new Error("Request is not awaiting completion documents");
   }
-}
 
-/**
- * Fetch current user's training requests
- */
-export async function getMyRequests() {
-  try {
-    const session = await getUserSession();
+  // insert pending_completion_approval with the subfolder url
+  await sql`
+    INSERT INTO request_status_track (request_id, status, file_url, remarks)
+    VALUES (
+      ${data.requestId},
+      'pending_completion_approval',
+      ${data.folderUrl},
+      'Post-completion documents submitted by employee'
+    )
+  `;
 
-    const requests = (await sql`
-      SELECT 
-        tr.id,
-        p.aip_code,
-        p.ppa,
-        INITCAP(tr.type) as type,
-        COALESCE(rst.status, 'pending') as status,
-        tr.submitted_at,
-        tr.remarks
-      FROM training_requests tr
-      JOIN ppmp p ON tr.ppmp_id = p.id
-      LEFT JOIN LATERAL (
-        SELECT status FROM request_status_track
-        WHERE request_id = tr.id
-        ORDER BY actioned_at DESC
-        LIMIT 1
-      ) rst ON true
-      WHERE tr.requested_by_id = ${session.user.id}
-      ORDER BY tr.submitted_at DESC
-    `) as unknown as TrainingRequest[];
-
-    return { requests, error: null };
-  } catch (error) {
-    return { requests: [], error: "Failed to fetch requests" };
-  }
-}
-
-/**
- * Get all dashboard data in one call
- */
-export async function getDashboardData() {
-  try {
-    const session = await getUserSession();
-
-    const [entriesResult, requestsResult] = await Promise.all([
-      getAvailablePpmpEntries(),
-      getMyRequests(),
-    ]);
-
-    return {
-      user: {
-        name: session.user.name,
-        email: session.user.email,
-        department: (session.user as any).department ?? null,
-      },
-      ppmpEntries: entriesResult.entries,
-      myRequests: requestsResult.requests,
-      error: entriesResult.error || requestsResult.error,
-    };
-  } catch (error) {
-    return {
-      user: null,
-      ppmpEntries: [],
-      myRequests: [],
-      error: "Failed to load dashboard",
-    };
-  }
+  revalidatePath("/user");
+  return { success: true };
 }

@@ -3,10 +3,12 @@ import { google } from "googleapis";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 
-export async function POST() {
+export async function POST(req: Request) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { parentFolderId, subfolderName } = await req.json().catch(() => ({}));
 
   const oauth2Client = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
@@ -22,15 +24,25 @@ export async function POST() {
 
   const drive = google.drive({ version: "v3", auth: oauth2Client });
 
-  // folder name: "Juan Dela Cruz 2025-03-13"
-  const folderDate = new Date().toISOString().split("T")[0];
-  const folderName = `${session.user.name} ${folderDate}`;
+  let folderName: string;
+  let parentId: string;
+
+  if (parentFolderId && subfolderName) {
+    // creating a subfolder inside existing request folder
+    folderName = subfolderName;
+    parentId = parentFolderId;
+  } else {
+    // original flow — new request folder
+    const folderDate = new Date().toISOString().split("T")[0];
+    folderName = `${session.user.name} ${folderDate}`;
+    parentId = process.env.GOOGLE_DRIVE_PARENT_FOLDER_ID!;
+  }
 
   const folderRes = await drive.files.create({
     requestBody: {
       name: folderName,
       mimeType: "application/vnd.google-apps.folder",
-      parents: [process.env.GOOGLE_DRIVE_PARENT_FOLDER_ID!],
+      parents: [parentId],
     },
     fields: "id",
   });
