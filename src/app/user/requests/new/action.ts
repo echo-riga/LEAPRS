@@ -12,20 +12,22 @@ export async function submitTrainingRequest(data: {
   trainingEnd: string | null;
   remarks: string | null;
   folderUrl: string;
+  budgetWanted: number | null; // ← add this
 }) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) throw new Error("Unauthorized");
 
   const [request] = (await sql`
     INSERT INTO training_requests
-      (ppmp_id, requested_by_id, type, training_start, training_end, remarks)
+      (ppmp_id, requested_by_id, type, training_start, training_end, remarks, budget_wanted)
     VALUES (
       ${data.ppmpId},
       ${session.user.id},
       ${data.type},
       ${data.trainingStart || null},
       ${data.trainingEnd || null},
-      ${data.remarks || null}
+      ${data.remarks || null},
+      ${data.budgetWanted}
     )
     RETURNING id
   `) as unknown as { id: string }[];

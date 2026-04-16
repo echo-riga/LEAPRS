@@ -35,6 +35,7 @@ import {
 } from "@mui/icons-material";
 import type { AdminRequest } from "./page";
 import { fetchStatusTrack, addStatusTrack } from "./action";
+import { fetchBudgetPreview } from "./action";
 
 const STATUS_OPTIONS = [
   "submitted",
@@ -217,6 +218,12 @@ function AddTrackDialog({
   const [loading, setLoading] = useState(false);
   const [uploadMsg, setUploadMsg] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [budgetPreview, setBudgetPreview] = useState<{
+    budget_wanted: number | null;
+    budget_allocation: number | null;
+    ppa: string;
+  } | null>(null);
+const [confirmOpen, setConfirmOpen] = useState(false);
 
   function reset() {
     setOffice("");
@@ -234,76 +241,108 @@ function AddTrackDialog({
   }
 
   async function handleAdd() {
-    if (!status) {
-      setError("Status is required.");
-      return;
-    }
+  if (!status) {
+    setError("Status is required.");
+    return;
+  }
+
+  // If approving, fetch budget preview and show confirm dialog first
+  if (status === "approved") {
     setLoading(true);
-    setError(null);
-
     try {
-      let fileUrl: string | null = null;
+      const preview = await fetchBudgetPreview(requestId);
+      setBudgetPreview(preview);
 
-      if (file && parentFolderUrl) {
-        const parentFolderId = extractFolderId(parentFolderUrl);
-        if (!parentFolderId)
-          throw new Error("Could not determine parent folder.");
+      const allocation = preview?.budget_allocation ?? 0;
+      const wanted = preview?.budget_wanted ?? 0;
 
-        // subfolder name: office or status
-        const subfolderName = office || STATUS_META[status]?.label || status;
-        setUploadMsg("Creating subfolder…");
-
-        const initRes = await fetch("/api/drive/init", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ parentFolderId, subfolderName }),
-        });
-        if (!initRes.ok) throw new Error("Failed to create subfolder");
-        const { folderId, accessToken } = await initRes.json();
-
-        setUploadMsg("Uploading file…");
-        const ext = file.name.split(".").pop() ?? "bin";
-        const name = `${subfolderName}.${ext}`;
-
-        const metadata = JSON.stringify({ name, parents: [folderId] });
-        const form = new FormData();
-        form.append(
-          "metadata",
-          new Blob([metadata], { type: "application/json" }),
+      if (wanted > 0 && allocation <= 0) {
+        setError("No remaining budget for this PPMP. Approval is not allowed.");
+        setLoading(false);
+        return;
+      }
+      if (wanted > allocation) {
+        setError(
+          `Insufficient budget. Requested ₱${wanted.toLocaleString("en-PH", { minimumFractionDigits: 2 })} but only ₱${allocation.toLocaleString("en-PH", { minimumFractionDigits: 2 })} remaining.`
         );
-        form.append("file", file);
-
-        const uploadRes = await fetch(
-          "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",
-          {
-            method: "POST",
-            headers: { Authorization: `Bearer ${accessToken}` },
-            body: form,
-          },
-        );
-        if (!uploadRes.ok) throw new Error("Failed to upload file");
-
-        fileUrl = `https://drive.google.com/drive/folders/${folderId}`;
+        setLoading(false);
+        return;
       }
 
-      setUploadMsg("Saving…");
-      await addStatusTrack({
-        requestId,
-        office: office || null,
-        status,
-        fileUrl,
-        remarks: remarks || null,
-      });
-
-      reset();
-      onAdded();
-      onClose();
+      setLoading(false);
+      setConfirmOpen(true); // show confirm dialog
+      return;
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Something went wrong");
+      setLoading(false);
+      return;
     }
-    setLoading(false);
-    setUploadMsg("");
   }
+
+  await doAdd();
+}
+
+async function doAdd() {
+  setLoading(true);
+  setError(null);
+  try {
+    let fileUrl: string | null = null;
+
+    if (file && parentFolderUrl) {
+      const parentFolderId = extractFolderId(parentFolderUrl);
+      if (!parentFolderId) throw new Error("Could not determine parent folder.");
+
+      const subfolderName = office || STATUS_META[status]?.label || status;
+      setUploadMsg("Creating subfolder…");
+
+      const initRes = await fetch("/api/drive/init", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ parentFolderId, subfolderName }),
+      });
+      if (!initRes.ok) throw new Error("Failed to create subfolder");
+      const { folderId, accessToken } = await initRes.json();
+
+      setUploadMsg("Uploading file…");
+      const ext = file.name.split(".").pop() ?? "bin";
+      const name = `${subfolderName}.${ext}`;
+
+      const metadata = JSON.stringify({ name, parents: [folderId] });
+      const form = new FormData();
+      form.append("metadata", new Blob([metadata], { type: "application/json" }));
+      form.append("file", file);
+
+      const uploadRes = await fetch(
+        "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${accessToken}` },
+          body: form,
+        },
+      );
+      if (!uploadRes.ok) throw new Error("Failed to upload file");
+
+      fileUrl = `https://drive.google.com/drive/folders/${folderId}`;
+    }
+
+    setUploadMsg("Saving…");
+    await addStatusTrack({
+      requestId,
+      office: office || null,
+      status,
+      fileUrl,
+      remarks: remarks || null,
+    });
+
+    reset();
+    onAdded();
+    onClose();
+  } catch (e: unknown) {
+    setError(e instanceof Error ? e.message : "Something went wrong");
+  }
+  setLoading(false);
+  setUploadMsg("");
+}
 
   return (
     <Dialog
@@ -452,7 +491,77 @@ function AddTrackDialog({
           )}
         </Button>
       </DialogActions>
+      <Dialog
+  open={confirmOpen}
+  onClose={() => setConfirmOpen(false)}
+  maxWidth="xs"
+  fullWidth
+  PaperProps={{ sx: { borderRadius: 3 } }}
+>
+  <DialogTitle sx={{ fontWeight: 700, color: "#1b5e20" }}>
+    Confirm Approval & Budget Deduction
+  </DialogTitle>
+  <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, pt: "12px !important" }}>
+    <Alert severity="info" icon={false} sx={{ bgcolor: "#e8f5e9", color: "#1b5e20" }}>
+      Approving this request will deduct the requested budget from the PPMP allocation.
+    </Alert>
+    <Box sx={{ p: 2, bgcolor: "#f9f9f9", borderRadius: 2, border: "1px solid #e0e0e0" }}>
+  <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+    <Typography variant="body2" color="text.secondary">Initial Allocation</Typography>
+    <Typography variant="body2" fontWeight={600} color="#1b5e20">
+      ₱{Number(budgetPreview?.budget_allocation ?? 0).toLocaleString("en-PH", { minimumFractionDigits: 2 })}
+    </Typography>
+  </Box>
+  <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+    <Typography variant="body2" color="text.secondary">Remaining Budget</Typography>
+    <Typography variant="body2" fontWeight={600} color="#e65100">
+      ₱{Number(budgetPreview?.remaining_budget ?? 0).toLocaleString("en-PH", { minimumFractionDigits: 2 })}
+    </Typography>
+  </Box>
+  <Divider sx={{ my: 1.5 }} />
+  <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+    <Typography variant="body2" color="text.secondary">Budget Requested</Typography>
+    <Typography variant="body2" fontWeight={600} color="#e65100">
+      − ₱{Number(budgetPreview?.budget_wanted ?? 0).toLocaleString("en-PH", { minimumFractionDigits: 2 })}
+    </Typography>
+  </Box>
+  <Divider sx={{ my: 1.5 }} />
+  <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+    <Typography variant="body2" color="text.secondary">After Approval</Typography>
+    <Typography variant="body2" fontWeight={700} color="#1b5e20">
+      ₱{(
+        Number(budgetPreview?.remaining_budget ?? 0) -
+        Number(budgetPreview?.budget_wanted ?? 0)
+      ).toLocaleString("en-PH", { minimumFractionDigits: 2 })}
+    </Typography>
+  </Box>
+</Box>
+  </DialogContent>
+  <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
+    <Button
+      onClick={() => setConfirmOpen(false)}
+      sx={{ textTransform: "none" }}
+    >
+      Cancel
+    </Button>
+    <Button
+      variant="contained"
+      onClick={async () => {
+        setConfirmOpen(false);
+        await doAdd();
+      }}
+      sx={{
+        textTransform: "none",
+        bgcolor: "#2e7d32",
+        "&:hover": { bgcolor: "#1b5e20" },
+      }}
+    >
+      Confirm Approval
+    </Button>
+  </DialogActions>
+</Dialog>
     </Dialog>
+    
   );
 }
 

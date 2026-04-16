@@ -3,6 +3,13 @@ import { sql } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
+export type BudgetHistoryItem = {
+  request_id: string;
+  budget_wanted: string;
+  actioned_at: string;
+  requested_by: string | null;
+};
+
 export type PpmpEntry = {
   aip_code: string;
   school_year_id: string;
@@ -20,11 +27,14 @@ export type PpmpEntry = {
   success_indicator: string | null;
   milestone: string | null;
   budget_allocation: string | null;
+  remaining_budget: string | null;
+  budget_history: BudgetHistoryItem[] | null; // add this
   ppa_owner: string | null;
   target_implementation: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
+  
 };
 
 export type Department = {
@@ -57,8 +67,25 @@ export default async function AdminPpmpPage() {
         p.success_indicator,
         p.milestone,
         p.budget_allocation,
+        p.remaining_budget,
         p.ppa_owner,
        p.target_implementation,
+       (
+          SELECT json_agg(
+            json_build_object(
+              'request_id', tr.id,
+              'budget_wanted', tr.budget_wanted,
+              'actioned_at', rst.actioned_at,
+              'requested_by', u2.name
+            ) ORDER BY rst.actioned_at ASC
+          )
+          FROM training_requests tr
+          JOIN request_status_track rst 
+            ON rst.request_id = tr.id 
+            AND rst.status = 'approved'
+          LEFT JOIN "user" u2 ON u2.id = tr.requested_by_id
+          WHERE tr.ppmp_id = p.id
+        ) AS budget_history,
         u.name          AS created_by,
         p.created_at,
         p.updated_at

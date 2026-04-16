@@ -50,8 +50,7 @@ import {
   createSchoolYearAction,
   deleteSchoolYearAction,
 } from "@/app/admin/ppmp/actions";
-import type { PpmpEntry, Department, SchoolYear } from "./page";
-
+import type { PpmpEntry, Department, SchoolYear, BudgetHistoryItem } from "./page";
 // ── constants ──────────────────────────────────────────────────────────────────
 
 const emptyForm = {
@@ -386,6 +385,12 @@ function ViewDialog({
             </Grid>
           </Box>
         ))}
+
+        <BudgetLedger
+          budgetAllocation={entry.budget_allocation}
+          history={entry.budget_history}
+        />
+        
         <Typography variant="caption" color="text.disabled">
           Created by {entry.created_by ?? "—"}
         </Typography>
@@ -869,6 +874,140 @@ function PpmpCard({
         </Tooltip>
       </CardActions>
     </Card>
+  );
+}
+
+function BudgetLedger({
+  budgetAllocation,
+  history,
+}: {
+  budgetAllocation: string | null;
+  history: BudgetHistoryItem[] | null;
+}) {
+  if (!budgetAllocation) return null;
+
+  const initial = Number(budgetAllocation);
+  const items = history ?? [];
+
+  // Calculate running balance
+  let running = initial;
+  const rows = items.map((item) => {
+    const deduction = Number(item.budget_wanted);
+    const before = running;
+    running -= deduction;
+    return { ...item, deduction, balanceAfter: running, before };
+  });
+
+  return (
+    <Box>
+      <SectionLabel label="BUDGET LEDGER" />
+      <Divider sx={{ mb: 2, mt: 0.5, borderColor: "#e8f5e9" }} />
+
+      {/* Initial allocation row */}
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          py: 1,
+          px: 1.5,
+          bgcolor: "#e8f5e9",
+          borderRadius: 1.5,
+          mb: 0.5,
+        }}
+      >
+        <Box>
+          <Typography variant="caption" color="text.disabled" fontWeight={600}>
+            INITIAL ALLOCATION
+          </Typography>
+        </Box>
+        <Typography variant="body2" fontWeight={700} color="#2e7d32">
+          {formatPeso(budgetAllocation)}
+        </Typography>
+      </Box>
+
+      {/* Deduction rows */}
+      {rows.length === 0 ? (
+        <Typography variant="caption" color="text.disabled" sx={{ pl: 1.5 }}>
+          No approved requests yet.
+        </Typography>
+      ) : (
+        rows.map((row, i) => (
+          <Box key={row.request_id}>
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "flex-start",
+                py: 1,
+                px: 1.5,
+                borderLeft: "3px solid #ef9a9a",
+                ml: 1,
+                mb: 0.5,
+              }}
+            >
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  {row.requested_by ?? "Unknown"} ·{" "}
+                  {new Date(row.actioned_at).toLocaleDateString("en-PH", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })}
+                </Typography>
+                <Typography
+                  variant="body2"
+                  fontWeight={600}
+                  color="error.main"
+                >
+                  − {formatPeso(String(row.deduction))}
+                </Typography>
+              </Box>
+              <Box sx={{ textAlign: "right" }}>
+                <Typography variant="caption" color="text.disabled">
+                  balance
+                </Typography>
+                <Typography
+                  variant="body2"
+                  fontWeight={700}
+                  color={row.balanceAfter < 0 ? "error.main" : "#1a1a1a"}
+                >
+                  {formatPeso(String(row.balanceAfter))}
+                </Typography>
+              </Box>
+            </Box>
+          </Box>
+        ))
+      )}
+
+      {/* Remaining balance footer */}
+      {rows.length > 0 && (
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            py: 1,
+            px: 1.5,
+            mt: 0.5,
+            bgcolor: running < 0 ? "#ffebee" : "#f1f8e9",
+            borderRadius: 1.5,
+            border: `1px solid ${running < 0 ? "#ef9a9a" : "#c5e1a5"}`,
+          }}
+        >
+          <Typography variant="caption" fontWeight={700} color="text.secondary">
+            REMAINING BUDGET
+          </Typography>
+          <Typography
+            variant="body2"
+            fontWeight={700}
+            color={running < 0 ? "error.main" : "#2e7d32"}
+          >
+            {formatPeso(String(running))}
+          </Typography>
+        </Box>
+      )}
+    </Box>
   );
 }
 

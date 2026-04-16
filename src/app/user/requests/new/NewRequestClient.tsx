@@ -133,6 +133,7 @@ export function NewRequestClient({ entry }: { entry: PpmpDetail }) {
   const [trainingStart, setTrainingStart] = useState("");
   const [trainingEnd, setTrainingEnd] = useState("");
   const [remarks, setRemarks] = useState("");
+  const [budgetWanted, setBudgetWanted] = useState<string>("");
   const [uploads, setUploads] = useState<UploadedFile[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -159,7 +160,17 @@ export function NewRequestClient({ entry }: { entry: PpmpDetail }) {
   const requiredKeys = activeReqs.filter((r) => r.required).map((r) => r.key);
   const uploadedKeys = uploads.map((u) => u.key);
   const missingRequired = requiredKeys.filter((k) => !uploadedKeys.includes(k));
-  const allRequiredUploaded = missingRequired.length === 0;
+  const budgetAllocation = entry.budget_allocation ?? null;
+  const budgetWantedNum = parseFloat(budgetWanted);
+  const budgetExceeded =
+    budgetAllocation !== null &&
+    !isNaN(budgetWantedNum) &&
+    budgetWantedNum >= budgetAllocation;
+  const budgetValid =
+    budgetAllocation === null ||
+    (budgetWanted !== "" && !isNaN(budgetWantedNum) && !budgetExceeded);
+
+  const allRequiredUploaded = missingRequired.length === 0 && budgetValid && budgetWanted !== "";
   const FILE_LABELS: Record<string, string> = {
     activity_design: "Activity Design",
     attendees: "Attendees",
@@ -231,11 +242,12 @@ export function NewRequestClient({ entry }: { entry: PpmpDetail }) {
       const { requestId } = await submitTrainingRequest({
         ppmpId: entry.id,
         type,
-        trainingStart,
-        trainingEnd,
-        remarks,
-        folderUrl,
-      });
+      trainingStart,
+      trainingEnd,
+      remarks,
+      folderUrl,
+      budgetWanted: budgetWanted ? parseFloat(budgetWanted) : null,
+    });
 
       setSubmitted(true);
       setLoading(false);
@@ -473,6 +485,60 @@ export function NewRequestClient({ entry }: { entry: PpmpDetail }) {
               sx={{ mb: 3 }}
             />
 
+
+            {/* Budget */}
+<SectionLabel label="BUDGET REQUESTED *" />
+<Divider sx={{ mb: 2, borderColor: "#e8f5e9" }} />
+{budgetAllocation !== null && (
+  <Box
+    sx={{
+      mb: 2,
+      p: 1.5,
+      bgcolor: "#f1f8e9",
+      borderRadius: 2,
+      border: "1px solid #c8e6c9",
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+    }}
+  >
+    <Typography variant="body2" color="text.secondary">
+      Allocated Budget (PPMP)
+    </Typography>
+    <Typography variant="body2" fontWeight={700} color="#2e7d32">
+      ₱{Number(budgetAllocation).toLocaleString("en-PH", { minimumFractionDigits: 2 })}
+    </Typography>
+  </Box>
+)}
+<TextField
+  label="Budget Requested (₱)"
+  type="number"
+  variant="standard"
+  fullWidth
+  value={budgetWanted}
+  onChange={(e) => setBudgetWanted(e.target.value)}
+  error={budgetExceeded}
+  helperText={
+    budgetExceeded
+      ? `Must be less than the allocated budget of ₱${Number(budgetAllocation).toLocaleString("en-PH", { minimumFractionDigits: 2 })}`
+      : budgetAllocation !== null && budgetValid && budgetWanted !== ""
+      ? "✓ Within allocated budget"
+      : "Required — enter the budget amount for this training request"
+  }
+  slotProps={{
+    htmlInput: { min: 0, step: "0.01" },
+    formHelperText: {
+      sx: {
+        color: budgetExceeded
+          ? "error.main"
+          : budgetValid && budgetWanted !== ""
+          ? "#2e7d32"
+          : "text.secondary",
+      },
+    },
+  }}
+  sx={{ mb: 3 }}
+/>
             {/* Pre-requirements */}
             <SectionLabel label="PRE-REQUISITE DOCUMENTS" />
             <Divider sx={{ mb: 1, borderColor: "#e8f5e9" }} />
@@ -619,8 +685,10 @@ export function NewRequestClient({ entry }: { entry: PpmpDetail }) {
                 color={allRequiredUploaded ? "#2e7d32" : "#e65100"}
               >
                 {allRequiredUploaded
-                  ? `✓ All required documents uploaded (${uploads.length} file${uploads.length !== 1 ? "s" : ""})`
-                  : `${missingRequired.length} required document${missingRequired.length !== 1 ? "s" : ""} still missing`}
+                ? `✓ All required documents uploaded (${uploads.length} file${uploads.length !== 1 ? "s" : ""})`
+                : missingRequired.length > 0
+                ? `${missingRequired.length} required document${missingRequired.length !== 1 ? "s" : ""} still missing`
+                : "Budget requested is required before submitting"}
               </Typography>
             </Box>
 

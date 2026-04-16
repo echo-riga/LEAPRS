@@ -37,6 +37,8 @@ type Stats = {
   utilized_budget: number;
   external_count: number;
   inhouse_count: number; // ← add this
+  total_requested: number;
+  in_progress_budget: number;
 };
 
 type Props = {
@@ -381,83 +383,81 @@ export function AdminDashboardClient({ departments, schoolYears }: Props) {
               <Skeleton height={120} />
             ) : (
               <Box>
-                <Box sx={{ mb: 3 }}>
-                  <Typography
-                    variant="caption"
-                    color="text.disabled"
-                    fontWeight={600}
-                    sx={{ textTransform: "uppercase", letterSpacing: 1 }}
-                  >
-                    Total Allocated Budget
-                  </Typography>
-                  <Typography
-                    variant="h5"
-                    fontWeight={700}
-                    color="#1b5e20"
-                    sx={{ mt: 0.5 }}
-                  >
-                    {fmt(stats?.total_budget ?? 0)}
-                  </Typography>
-                </Box>
+  <Box sx={{ mb: 3 }}>
+    <Typography variant="caption" color="text.disabled" fontWeight={600}
+      sx={{ textTransform: "uppercase", letterSpacing: 1 }}>
+      Total Allocated Budget (PPMP)
+    </Typography>
+    <Typography variant="h5" fontWeight={700} color="#1b5e20" sx={{ mt: 0.5 }}>
+      {fmt(stats?.total_budget ?? 0)}
+    </Typography>
+  </Box>
 
-                <Divider sx={{ mb: 3, borderColor: "#e8f5e9" }} />
+  <Divider sx={{ mb: 3, borderColor: "#e8f5e9" }} />
 
-                <Box sx={{ mb: 1.5 }}>
-                  <Box
-                    sx={{ display: "flex", justifyContent: "space-between" }}
-                  >
-                    <Typography variant="body2" color="text.secondary">
-                      Utilized (Completed)
-                    </Typography>
-                    <Typography
-                      variant="body2"
-                      fontWeight={700}
-                      color="#2e7d32"
-                    >
-                      {utilizedPct}%
-                    </Typography>
-                  </Box>
-                  <ProgressBar value={Number(utilizedPct)} color="#2e7d32" />
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                    sx={{ mt: 0.5, display: "block" }}
-                  >
-                    {fmt(stats?.utilized_budget ?? 0)}
-                  </Typography>
-                </Box>
+  {/* Utilized */}
+  <Box sx={{ mb: 2 }}>
+    <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+      <Typography variant="body2" color="text.secondary">Utilized (Completed)</Typography>
+      <Typography variant="body2" fontWeight={700} color="#2e7d32">
+        {stats && stats.total_budget > 0
+          ? ((stats.utilized_budget / stats.total_budget) * 100).toFixed(1)
+          : "0.0"}%
+      </Typography>
+    </Box>
+    <ProgressBar
+      value={stats && stats.total_budget > 0
+        ? (stats.utilized_budget / stats.total_budget) * 100
+        : 0}
+      color="#2e7d32"
+    />
+    <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
+      {fmt(stats?.utilized_budget ?? 0)}
+    </Typography>
+  </Box>
 
-                <Box>
-                  <Box
-                    sx={{ display: "flex", justifyContent: "space-between" }}
-                  >
-                    <Typography variant="body2" color="text.secondary">
-                      Remaining
-                    </Typography>
-                    <Typography
-                      variant="body2"
-                      fontWeight={700}
-                      color="#e65100"
-                    >
-                      {stats ? (100 - Number(utilizedPct)).toFixed(1) : "0.0"}%
-                    </Typography>
-                  </Box>
-                  <ProgressBar
-                    value={100 - Number(utilizedPct)}
-                    color="#e65100"
-                  />
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                    sx={{ mt: 0.5, display: "block" }}
-                  >
-                    {fmt(
-                      (stats?.total_budget ?? 0) -
-                        (stats?.utilized_budget ?? 0),
-                    )}
-                  </Typography>
-                </Box>
-              </Box>
+  {/* In Progress */}
+  <Box sx={{ mb: 2 }}>
+    <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+      <Typography variant="body2" color="text.secondary">In Progress</Typography>
+      <Typography variant="body2" fontWeight={700} color="#6a1b9a">
+        {stats && stats.total_budget > 0
+          ? ((stats.in_progress_budget / stats.total_budget) * 100).toFixed(1)
+          : "0.0"}%
+      </Typography>
+    </Box>
+    <ProgressBar
+      value={stats && stats.total_budget > 0
+        ? (stats.in_progress_budget / stats.total_budget) * 100
+        : 0}
+      color="#6a1b9a"
+    />
+    <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
+      {fmt(stats?.in_progress_budget ?? 0)}
+    </Typography>
+  </Box>
+
+  {/* Remaining */}
+  <Box>
+    <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+      <Typography variant="body2" color="text.secondary">Remaining</Typography>
+      <Typography variant="body2" fontWeight={700} color="#e65100">
+        {stats && stats.total_budget > 0
+          ? (((stats.total_budget - stats.utilized_budget - stats.in_progress_budget) / stats.total_budget) * 100).toFixed(1)
+          : "0.0"}%
+      </Typography>
+    </Box>
+    <ProgressBar
+      value={stats && stats.total_budget > 0
+        ? ((stats.total_budget - stats.utilized_budget - stats.in_progress_budget) / stats.total_budget) * 100
+        : 0}
+      color="#e65100"
+    />
+    <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
+      {fmt((stats?.total_budget ?? 0) - (stats?.utilized_budget ?? 0) - (stats?.in_progress_budget ?? 0))}
+    </Typography>
+  </Box>
+</Box>
             )}
           </Paper>
         </Grid>
