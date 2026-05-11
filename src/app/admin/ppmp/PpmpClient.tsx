@@ -1045,10 +1045,10 @@ export function PpmpClient({
   const isEdit = !!selected && open;
 
   async function handleAddDepartment(name: string) {
-    await createDepartmentAction(name);
-    setDepartments((prev) => [...prev, { id: "__pending__", name }]);
-    router.refresh();
-  }
+  const { id } = await createDepartmentAction(name);
+  setDepartments((prev) => [...prev, { id, name }]); // ← real ID now
+  router.refresh();
+}
 
   async function handleDeleteDepartment(id: string) {
     await deleteDepartmentAction(id);
@@ -1057,11 +1057,10 @@ export function PpmpClient({
   }
 
   async function handleAddSchoolYear(name: string) {
-    await createSchoolYearAction(name);
-    setSchoolYears((prev) => [...prev, { id: "__pending__", name }]);
-    router.refresh();
-  }
-
+  const { id } = await createSchoolYearAction(name);
+  setSchoolYears((prev) => [...prev, { id, name }]);
+  router.refresh();
+}
   async function handleDeleteSchoolYear(id: string) {
     await deleteSchoolYearAction(id);
     setSchoolYears((prev) => prev.filter((s) => s.id !== id));

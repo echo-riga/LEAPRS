@@ -107,9 +107,12 @@ export async function createDepartmentAction(name: string) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session || session.user.role !== "admin") throw new Error("Forbidden");
 
-  await sql`INSERT INTO departments (name) VALUES (${name})`;
+  const [row] = await sql`
+    INSERT INTO departments (name) VALUES (${name}) RETURNING id
+  `;
+
   revalidatePath("/admin/ppmp");
-  return { error: null };
+  return { id: row.id as string, error: null };
 }
 
 export async function deleteDepartmentAction(id: string) {
@@ -126,9 +129,12 @@ export async function createSchoolYearAction(name: string) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session || session.user.role !== "admin") throw new Error("Forbidden");
 
-  await sql`INSERT INTO school_years (name) VALUES (${name})`;
+  const [row] = await sql`
+    INSERT INTO school_years (name) VALUES (${name}) RETURNING id
+  `;
+
   revalidatePath("/admin/ppmp");
-  return { error: null };
+  return { id: row.id as string, error: null };
 }
 
 export async function deleteSchoolYearAction(id: string) {

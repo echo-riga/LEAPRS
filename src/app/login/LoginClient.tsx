@@ -23,28 +23,36 @@ export function LoginClient() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
+async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  e.preventDefault();
+  if (loading) return; // ← prevent double submit
+  setLoading(true);
+  setError(null);
 
-    const form = new FormData(e.currentTarget);
+  const form = new FormData(e.currentTarget);
+  const creds = {
+    email: form.get("email") as string,
+    password: form.get("password") as string,
+  };
 
-    const result = await authClient.signIn.email({
-      email: form.get("email") as string,
-      password: form.get("password") as string,
-    });
+  let result = await authClient.signIn.email(creds);
 
-    if (result.error) {
-      setError(result.error.message ?? "Invalid email or password");
-      setLoading(false);
-      return;
-    }
-
-    const role = result.data?.user?.role;
-    if (role === "admin") router.push("/admin");
-    else router.push("/user");
+  // Retry once on first-call failure
+  if (result.error) {
+    await new Promise((r) => setTimeout(r, 500));
+    result = await authClient.signIn.email(creds);
   }
+
+  if (result.error) {
+    setError(result.error.message ?? "Invalid email or password");
+    setLoading(false);
+    return;
+  }
+
+  const role = result.data?.user?.role;
+  if (role === "admin") router.push("/admin");
+  else router.push("/user");
+}
 
   return (
     <Box sx={{ display: "flex", minHeight: "100vh" }}>

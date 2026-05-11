@@ -32,6 +32,8 @@ import {
   ListItem,
   ListItemIcon,
   ListItemText,
+   ToggleButtonGroup,
+  ToggleButton,
 } from "@mui/material";
 import {
   AddOutlined,
@@ -53,8 +55,8 @@ import {
   DeleteOutlined,
 } from "@mui/icons-material";
 import { useState, useEffect } from "react";
-import { fetchMyRequestTrack, submitPostCompletionDocs } from "./action";
-
+import { EditOutlined } from "@mui/icons-material"; // add to existing icon imports
+import { fetchMyRequestTrack, submitPostCompletionDocs, updateTrainingRequest } from "./action";
 // ── types ─────────────────────────────────────────────────────────────────────
 
 export type PpmpSummary = {
@@ -81,6 +83,9 @@ export type TrainingRequest = {
   status: string;
   submitted_at: string;
   remarks: string | null;
+  training_start: string | null;
+  training_end: string | null;
+  budget_wanted: number | null;
 };
 
 type TrackEntry = {
@@ -650,16 +655,225 @@ function PostCompletionDialog({
   );
 }
 
+function EditRequestDialog({
+  request,
+  ppmpEntry,
+  onClose,
+  onSaved,
+}: {
+  request: TrainingRequest | null;
+  ppmpEntry: PpmpSummary | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [type, setType] = useState<"external" | "in-house">("external");
+  const [trainingStart, setTrainingStart] = useState("");
+  const [trainingEnd, setTrainingEnd] = useState("");
+  const [remarks, setRemarks] = useState("");
+  const [budgetWanted, setBudgetWanted] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    if (!request) return;
+    setType(request.type);
+  setTrainingStart(
+  request.training_start
+    ? new Date(request.training_start).toISOString().split("T")[0]
+    : ""
+);
+setTrainingEnd(
+  request.training_end
+    ? new Date(request.training_end).toISOString().split("T")[0]
+    : ""
+);
+    setRemarks(request.remarks ?? "");
+    setBudgetWanted(request.budget_wanted?.toString() ?? "");
+    setError(null);
+    setDone(false);
+  }, [request?.id]);
+
+  if (!request) return null;
+
+  const budgetAllocation = ppmpEntry ? (ppmpEntry as any).budget_allocation ?? null : null;
+  const budgetWantedNum = parseFloat(budgetWanted);
+  const budgetExceeded =
+    budgetAllocation !== null &&
+    !isNaN(budgetWantedNum) &&
+    budgetWantedNum >= budgetAllocation;
+
+  async function handleSave() {
+    if (!request) return;
+    if (!trainingStart || !trainingEnd) {
+      setError("Please set both training start and end dates.");
+      return;
+    }
+    if (budgetWanted === "" || isNaN(budgetWantedNum) || budgetExceeded) {
+      setError("Please enter a valid budget amount.");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      await updateTrainingRequest({
+        requestId: request.id,
+        type,
+        trainingStart,
+        trainingEnd,
+        remarks,
+        budgetWanted: parseFloat(budgetWanted),
+      });
+      setDone(true);
+      onSaved();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Something went wrong.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Dialog
+      open={!!request}
+      onClose={loading ? undefined : onClose}
+      maxWidth="sm"
+      fullWidth
+      PaperProps={{ sx: { borderRadius: 3 } }}
+    >
+      <DialogTitle sx={{ pb: 1 }}>
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <Box>
+            <Typography
+              variant="caption"
+              sx={{ bgcolor: "#e8f5e9", color: "#2e7d32", px: 1.2, py: 0.4, borderRadius: 1, fontWeight: 700 }}
+            >
+              {request.aip_code}
+            </Typography>
+            <Typography variant="h6" fontWeight={700} sx={{ mt: 0.5 }}>
+              Edit Request
+            </Typography>
+            <Typography variant="caption" color="text.secondary">{request.ppa}</Typography>
+          </Box>
+          <IconButton size="small" disabled={loading} onClick={onClose}>
+            <CloseOutlined />
+          </IconButton>
+        </Box>
+      </DialogTitle>
+
+      <DialogContent sx={{ pt: 2 }}>
+        {done ? (
+          <Box sx={{ py: 4, display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+            <CheckCircleOutlined sx={{ color: "#2e7d32", fontSize: 48 }} />
+            <Typography variant="h6" fontWeight={700} color="#2e7d32">Request Updated!</Typography>
+            <Button
+              variant="contained"
+              onClick={onClose}
+              sx={{ bgcolor: "#2e7d32", "&:hover": { bgcolor: "#1b5e20" }, textTransform: "none", borderRadius: 2 }}
+            >
+              Done
+            </Button>
+          </Box>
+        ) : (
+          <>
+            {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+
+            <Typography variant="caption" sx={{ color: "#2e7d32", fontWeight: 700, letterSpacing: 1.5, display: "block", mb: 0.5 }}>
+              TRAINING TYPE
+            </Typography>
+            <Divider sx={{ mb: 2, borderColor: "#e8f5e9" }} />
+            <ToggleButtonGroup
+              value={type}
+              exclusive
+              onChange={(_, val) => { if (val) setType(val); }}
+              sx={{ mb: 3 }}
+            >
+              {["external", "in-house"].map((v) => (
+                <ToggleButton
+                  key={v}
+                  value={v}
+                  sx={{
+                    textTransform: "none", fontWeight: 600, px: 3,
+                    "&.Mui-selected": { bgcolor: "#e8f5e9", color: "#2e7d32", borderColor: "#2e7d32" },
+                  }}
+                >
+                  {v === "external" ? "External (E)" : "In-house (I)"}
+                </ToggleButton>
+              ))}
+            </ToggleButtonGroup>
+
+            <Typography variant="caption" sx={{ color: "#2e7d32", fontWeight: 700, letterSpacing: 1.5, display: "block", mb: 0.5 }}>
+              TRAINING SCHEDULE
+            </Typography>
+            <Divider sx={{ mb: 2, borderColor: "#e8f5e9" }} />
+            <Grid container spacing={3} sx={{ mb: 3 }}>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  label="Training Start Date" type="date" variant="standard" fullWidth
+                  value={trainingStart} onChange={(e) => setTrainingStart(e.target.value)}
+                  slotProps={{ inputLabel: { shrink: true } }}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  label="Training End Date" type="date" variant="standard" fullWidth
+                  value={trainingEnd} onChange={(e) => setTrainingEnd(e.target.value)}
+                  slotProps={{ inputLabel: { shrink: true } }}
+                />
+              </Grid>
+            </Grid>
+
+            <Typography variant="caption" sx={{ color: "#2e7d32", fontWeight: 700, letterSpacing: 1.5, display: "block", mb: 0.5 }}>
+              REMARKS
+            </Typography>
+            <Divider sx={{ mb: 2, borderColor: "#e8f5e9" }} />
+            <TextField
+              label="Remarks / Notes" variant="standard" fullWidth multiline minRows={2}
+              value={remarks} onChange={(e) => setRemarks(e.target.value)}
+              sx={{ mb: 3 }}
+            />
+
+            <Typography variant="caption" sx={{ color: "#2e7d32", fontWeight: 700, letterSpacing: 1.5, display: "block", mb: 0.5 }}>
+              BUDGET REQUESTED
+            </Typography>
+            <Divider sx={{ mb: 2, borderColor: "#e8f5e9" }} />
+            <TextField
+              label="Budget Requested (₱)" type="number" variant="standard" fullWidth
+              value={budgetWanted} onChange={(e) => setBudgetWanted(e.target.value)}
+              error={budgetExceeded}
+              helperText={budgetExceeded ? `Must be less than allocated budget` : ""}
+              slotProps={{ htmlInput: { min: 0, step: "0.01" } }}
+              sx={{ mb: 2 }}
+            />
+
+            <Box sx={{ display: "flex", gap: 1.5, justifyContent: "flex-end", mt: 1 }}>
+              <Button onClick={onClose} sx={{ textTransform: "none" }} disabled={loading}>Cancel</Button>
+              <Button
+                variant="contained" onClick={handleSave} disabled={loading}
+                sx={{ textTransform: "none", bgcolor: "#2e7d32", "&:hover": { bgcolor: "#1b5e20" }, minWidth: 130 }}
+              >
+                {loading ? <CircularProgress size={18} color="inherit" /> : "Save Changes"}
+              </Button>
+            </Box>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ── ppmp card ─────────────────────────────────────────────────────────────────
 
 function PpmpCard({
   entry,
   onView,
   onRequest,
+  onEdit,
 }: {
   entry: PpmpSummary;
   onView: () => void;
   onRequest: () => void;
+  onEdit: () => void;
 }) {
   return (
     <Card
@@ -765,39 +979,27 @@ function PpmpCard({
         </Box>
       </CardContent>
       <Divider sx={{ borderColor: "#f0f0f0" }} />
-      <CardActions sx={{ px: 2.5, py: 1.5, gap: 1 }}>
-        <Button
-          size="small"
-          variant="outlined"
-          startIcon={<VisibilityOutlined />}
-          onClick={onView}
-          sx={{
-            textTransform: "none",
-            borderColor: "#c8e6c9",
-            color: "#2e7d32",
-            borderRadius: 2,
-            fontSize: 12,
-          }}
+       <CardActions sx={{ px: 2.5, py: 1.5, gap: 1 }}>
+      <Button size="small" variant="outlined" startIcon={<VisibilityOutlined />} onClick={onView}
+        sx={{ textTransform: "none", borderColor: "#c8e6c9", color: "#2e7d32", borderRadius: 2, fontSize: 12 }}
+      >
+        View Details
+      </Button>
+      {entry.has_active_request ? (
+        // Only show Edit if status is still 'submitted' — checked via onEdit handler
+        <Button size="small" variant="outlined" startIcon={<EditOutlined />} onClick={onEdit}
+          sx={{ textTransform: "none", fontSize: 12, borderRadius: 2, borderColor: "#bbdefb", color: "#1565c0" }}
         >
-          View Details
+          Edit Request
         </Button>
-        <Button
-          size="small"
-          variant="contained"
-          disabled={entry.has_active_request}
-          onClick={onRequest}
-          sx={{
-            textTransform: "none",
-            fontSize: 12,
-            borderRadius: 2,
-            bgcolor: entry.has_active_request ? undefined : "#2e7d32",
-            "&:hover": { bgcolor: "#1b5e20" },
-            color: "white",
-          }}
+      ) : (
+        <Button size="small" variant="contained" onClick={onRequest}
+          sx={{ textTransform: "none", fontSize: 12, borderRadius: 2, bgcolor: "#2e7d32", "&:hover": { bgcolor: "#1b5e20" }, color: "white" }}
         >
-          {entry.has_active_request ? "Requested" : "Request This"}
+          Request This
         </Button>
-      </CardActions>
+      )}
+    </CardActions>
     </Card>
   );
 }
@@ -1408,6 +1610,15 @@ export function DashboardClient({
   const [reqPage, setReqPage] = useState(0);
   const [reqRows, setReqRows] = useState(8);
 
+  const [editRequest, setEditRequest] = useState<TrainingRequest | null>(null);
+const [editPpmpEntry, setEditPpmpEntry] = useState<PpmpSummary | null>(null);
+
+function handleEditSaved() {
+  setEditRequest(null);
+  setEditPpmpEntry(null);
+  router.refresh();
+}
+
   const [viewEntry, setViewEntry] = useState<PpmpSummary | null>(null);
   const [viewRequest, setViewRequest] = useState<TrainingRequest | null>(null);
   const [uploadDocReq, setUploadDocReq] = useState<TrainingRequest | null>(
@@ -1712,13 +1923,17 @@ export function DashboardClient({
               <Grid container spacing={2.5}>
                 {paginatedPpmp.map((entry) => (
                   <Grid size={{ xs: 12, sm: 6, md: 4 }} key={entry.aip_code}>
-                    <PpmpCard
-                      entry={entry}
-                      onView={() => setViewEntry(entry)}
-                      onRequest={() =>
-                        router.push(`/user/requests/new?aip=${entry.aip_code}`)
-                      }
-                    />
+                   <PpmpCard
+  entry={entry}
+  onView={() => setViewEntry(entry)}
+  onRequest={() => router.push(`/user/requests/new?aip=${entry.aip_code}`)}
+ onEdit={() => {
+  const req = myRequests.find(
+    (r) => r.aip_code === entry.aip_code && r.status === "submitted"
+  );
+  if (req) router.push(`/user/requests/edit/${req.id}`);
+}}
+/>
                   </Grid>
                 ))}
               </Grid>
@@ -1877,6 +2092,13 @@ export function DashboardClient({
           setUploadDocReq(req);
         }}
       />
+
+<EditRequestDialog
+  request={editRequest}
+  ppmpEntry={editPpmpEntry}
+  onClose={() => { setEditRequest(null); setEditPpmpEntry(null); }}
+  onSaved={handleEditSaved}
+/>
 
       <PostCompletionDialog
         request={uploadDocReq}

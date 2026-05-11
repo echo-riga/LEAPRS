@@ -46,26 +46,29 @@ export default async function UserPage() {
     LEFT JOIN school_years sy ON sy.id = p.school_year_id
     ORDER BY p.created_at DESC
   `,
-      sql`
-    SELECT
-      tr.id,
-      p.aip_code,
-      p.ppa,
-      tr.type,
-      rst.status,
-      tr.submitted_at,
-      tr.remarks
-    FROM training_requests tr
-    JOIN ppmp p ON p.id = tr.ppmp_id
-    LEFT JOIN LATERAL (
-      SELECT status FROM request_status_track
-      WHERE request_id = tr.id
-      ORDER BY actioned_at DESC
-      LIMIT 1
-    ) rst ON true
-    WHERE tr.requested_by_id = ${session.user.id}
-    ORDER BY tr.submitted_at DESC
-  `,
+     sql`
+  SELECT
+    tr.id,
+    p.aip_code,
+    p.ppa,
+    tr.type,
+    rst.status,
+    tr.submitted_at,
+    tr.remarks,
+    tr.training_start,
+    tr.training_end,
+    tr.budget_wanted
+  FROM training_requests tr
+  JOIN ppmp p ON p.id = tr.ppmp_id
+  LEFT JOIN LATERAL (
+    SELECT status FROM request_status_track
+    WHERE request_id = tr.id
+    ORDER BY actioned_at DESC
+    LIMIT 1
+  ) rst ON true
+  WHERE tr.requested_by_id = ${session.user.id}
+  ORDER BY tr.submitted_at DESC
+`,
       sql`SELECT id, name FROM departments ORDER BY name ASC`,
       sql`SELECT id, name FROM school_years ORDER BY name ASC`,
     ],
