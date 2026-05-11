@@ -218,11 +218,12 @@ function AddTrackDialog({
   const [loading, setLoading] = useState(false);
   const [uploadMsg, setUploadMsg] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [budgetPreview, setBudgetPreview] = useState<{
-    budget_wanted: number | null;
-    budget_allocation: number | null;
-    ppa: string;
-  } | null>(null);
+ const [budgetPreview, setBudgetPreview] = useState<{
+  budget_wanted: number | null;
+  budget_allocation: number | null;
+  remaining_budget: number | null;
+  ppa: string;
+} | null>(null);
 const [confirmOpen, setConfirmOpen] = useState(false);
 
   function reset() {
