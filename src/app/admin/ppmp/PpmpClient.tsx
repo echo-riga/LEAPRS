@@ -51,6 +51,7 @@ import {
   deleteSchoolYearAction,
 } from "@/app/admin/ppmp/actions";
 import type { PpmpEntry, Department, SchoolYear, BudgetHistoryItem } from "./page";
+import { AdminRequestDialog } from "./AdminRequestDialog";
 // ── constants ──────────────────────────────────────────────────────────────────
 
 const emptyForm = {
@@ -390,7 +391,7 @@ function ViewDialog({
           budgetAllocation={entry.budget_allocation}
           history={entry.budget_history}
         />
-        
+
         <Typography variant="caption" color="text.disabled">
           Created by {entry.created_by ?? "—"}
         </Typography>
@@ -759,11 +760,13 @@ function PpmpCard({
   onView,
   onEdit,
   onDelete,
+  onRequest,
 }: {
   entry: PpmpEntry;
   onView: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onRequest: () => void;
 }) {
   return (
     <Card
@@ -870,6 +873,11 @@ function PpmpCard({
         <Tooltip title="Delete">
           <IconButton size="small" onClick={onDelete} color="error">
             <DeleteOutlined fontSize="small" />
+          </IconButton>
+        </Tooltip>
+        <Tooltip title="Submit Request">
+          <IconButton size="small" onClick={onRequest} sx={{ color: "#e65100" }}>
+            <AddOutlined fontSize="small" />
           </IconButton>
         </Tooltip>
       </CardActions>
@@ -1023,7 +1031,8 @@ export function PpmpClient({
   schoolYears: SchoolYear[];
 }) {
   const router = useRouter();
-
+  const [requestEntry, setRequestEntry] = useState<PpmpEntry | null>(null);
+  const [requestOpen, setRequestOpen] = useState(false);
   const [departments, setDepartments] =
     useState<Department[]>(initialDepartments);
   const [schoolYears, setSchoolYears] =
@@ -1045,10 +1054,10 @@ export function PpmpClient({
   const isEdit = !!selected && open;
 
   async function handleAddDepartment(name: string) {
-  const { id } = await createDepartmentAction(name);
-  setDepartments((prev) => [...prev, { id, name }]); // ← real ID now
-  router.refresh();
-}
+    const { id } = await createDepartmentAction(name);
+    setDepartments((prev) => [...prev, { id, name }]); // ← real ID now
+    router.refresh();
+  }
 
   async function handleDeleteDepartment(id: string) {
     await deleteDepartmentAction(id);
@@ -1057,10 +1066,10 @@ export function PpmpClient({
   }
 
   async function handleAddSchoolYear(name: string) {
-  const { id } = await createSchoolYearAction(name);
-  setSchoolYears((prev) => [...prev, { id, name }]);
-  router.refresh();
-}
+    const { id } = await createSchoolYearAction(name);
+    setSchoolYears((prev) => [...prev, { id, name }]);
+    router.refresh();
+  }
   async function handleDeleteSchoolYear(id: string) {
     await deleteSchoolYearAction(id);
     setSchoolYears((prev) => prev.filter((s) => s.id !== id));
@@ -1313,6 +1322,10 @@ export function PpmpClient({
                   onView={() => openView(entry)}
                   onEdit={() => openEdit(entry)}
                   onDelete={() => openDelete(entry)}
+                  onRequest={() => {
+                    setRequestEntry(entry);
+                    setRequestOpen(true);
+                  }}
                 />
               </Grid>
             ))}
@@ -1371,6 +1384,19 @@ export function PpmpClient({
         onConfirm={handleDelete}
         entry={selected}
         loading={loading}
+      />
+      <AdminRequestDialog
+        open={requestOpen}
+        entry={requestEntry}
+        onClose={() => {
+          setRequestOpen(false);
+          setRequestEntry(null);
+        }}
+        onSubmitted={() => {
+          setRequestOpen(false);
+          setRequestEntry(null);
+          router.refresh();
+        }}
       />
     </Box>
   );

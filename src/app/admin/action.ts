@@ -13,9 +13,9 @@ export async function fetchDashboardStats(filters: {
 
   const { departmentId, schoolYearId } = filters;
 
-  
-   const [requestStats, budgetStats] = await Promise.all([
-  sql`
+
+  const [requestStats, budgetStats, monthlyStats] = await Promise.all([
+    sql`
     SELECT
       COUNT(*)                                                          AS total_requests,
       COUNT(*) FILTER (WHERE rst.status = 'submitted')                 AS submitted,
@@ -39,7 +39,7 @@ export async function fetchDashboardStats(filters: {
     WHERE (${departmentId} = '' OR p.department_id = ${departmentId})
       AND (${schoolYearId} = '' OR p.school_year_id = ${schoolYearId})
   `,
-  sql`
+    sql`
     SELECT
       COALESCE(SUM(p.budget_allocation), 0)                                                        AS total_budget,
       COALESCE(SUM(tr.budget_wanted), 0)                                                           AS total_requested,
@@ -56,7 +56,27 @@ export async function fetchDashboardStats(filters: {
     WHERE (${departmentId} = '' OR p.department_id = ${departmentId})
       AND (${schoolYearId} = '' OR p.school_year_id = ${schoolYearId})
   `,
-]);
+    sql`
+    SELECT
+      TO_CHAR(DATE_TRUNC('month', tr.submitted_at), 'Mon YYYY') AS month,
+      DATE_TRUNC('month', tr.submitted_at) AS month_date,
+      COUNT(*) FILTER (WHERE rst.status IN ('submitted', 'waiting_approval')) AS submitted,
+COUNT(*) FILTER (WHERE rst.status = 'completed') AS completed,
+COUNT(*) FILTER (WHERE rst.status = 'rejected') AS rejected
+    FROM training_requests tr
+    JOIN ppmp p ON p.id = tr.ppmp_id
+    JOIN LATERAL (
+      SELECT status FROM request_status_track
+      WHERE request_id = tr.id
+      ORDER BY actioned_at DESC
+      LIMIT 1
+    ) rst ON true
+    WHERE (${departmentId} = '' OR p.department_id = ${departmentId})
+      AND (${schoolYearId} = '' OR p.school_year_id = ${schoolYearId})
+    GROUP BY DATE_TRUNC('month', tr.submitted_at)
+    ORDER BY DATE_TRUNC('month', tr.submitted_at) ASC
+  `,
+  ]);
 
   const r = requestStats[0] as any;
   const b = budgetStats[0] as any;
@@ -75,7 +95,60 @@ export async function fetchDashboardStats(filters: {
     utilized_budget: Number(b.utilized_budget),
     external_count: Number(r.external_count),
     inhouse_count: Number(r.inhouse_count),
-  total_requested: Number(b.total_requested),
-  in_progress_budget: Number(b.in_progress_budget),
+    total_requested: Number(b.total_requested),
+    in_progress_budget: Number(b.in_progress_budget),
+    monthly_trends: (monthlyStats as any[]).map((m) => ({
+      month: m.month,
+      submitted: Number(m.submitted),
+      waiting_approval: Number(m.waiting_approval),
+      completed: Number(m.completed),
+      rejected: Number(m.rejected),
+    })),
   };
+}
+
+export async function fetchAipReport(filters: {
+  departmentId: string;
+  schoolYearId: string;
+}) {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session || session.user.role !== "admin") throw new Error("Forbidden");
+
+  const { departmentId, schoolYearId } = filters;
+
+  const rows = await sql`
+    SELECT
+      p.aip_code,
+      d.name AS department,
+      p.ppa AS description,
+      p.budget_allocation AS allocated,
+      COALESCE(SUM(tr.budget_wanted) FILTER (
+        WHERE rst.status NOT IN ('rejected')
+      ), 0) AS requested,
+      p.budget_allocation - COALESCE(SUM(tr.budget_wanted) FILTER (
+        WHERE rst.status NOT IN ('rejected')
+      ), 0) AS balance
+    FROM ppmp p
+    LEFT JOIN departments d ON d.id = p.department_id
+    LEFT JOIN training_requests tr ON tr.ppmp_id = p.id
+    LEFT JOIN LATERAL (
+      SELECT status FROM request_status_track
+      WHERE request_id = tr.id
+      ORDER BY actioned_at DESC
+      LIMIT 1
+    ) rst ON true
+    WHERE (${departmentId} = '' OR p.department_id = ${departmentId})
+      AND (${schoolYearId} = '' OR p.school_year_id = ${schoolYearId})
+    GROUP BY p.id, p.aip_code, d.name, p.ppa, p.budget_allocation
+    ORDER BY p.aip_code ASC
+  `;
+
+  return rows as unknown as {
+    aip_code: string;
+    department: string | null;
+    description: string;
+    allocated: number;
+    requested: number;
+    balance: number;
+  }[];
 }

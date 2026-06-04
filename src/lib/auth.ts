@@ -24,9 +24,9 @@ export const auth = betterAuth({
         type: "string",
         defaultValue: "user",
       },
-      department: {
+      department_id: {
         type: "string",
-        required: false, // nullable, not everyone has a department yet
+        required: false,
       },
     },
   },

@@ -9,23 +9,19 @@ export async function createUserAction(data: {
   name: string;
   email: string;
   password: string;
-  department: string;
+  department_id: string;
   role: string;
 }) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session || session.user.role !== "admin") throw new Error("Forbidden");
-  // use existing auth instance — no need for a second one
+
   await auth.api.signUpEmail({
-    body: {
-      name: data.name,
-      email: data.email,
-      password: data.password,
-    },
+    body: { name: data.name, email: data.email, password: data.password },
   });
 
   await sql`
     UPDATE "user"
-    SET department = ${data.department}, role = ${data.role}
+    SET department_id = ${data.department_id || null}, role = ${data.role}
     WHERE email = ${data.email}
   `;
 
@@ -37,7 +33,7 @@ export async function updateUserAction(data: {
   id: string;
   name: string;
   email: string;
-  department: string;
+  department_id: string;
   role: string;
 }) {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -48,7 +44,7 @@ export async function updateUserAction(data: {
     SET
       name = ${data.name},
       email = ${data.email},
-      department = ${data.department},
+      department_id = ${data.department_id || null},
       role = ${data.role},
       "updatedAt" = NOW()
     WHERE id = ${data.id}
@@ -57,6 +53,7 @@ export async function updateUserAction(data: {
   revalidatePath("/admin/users");
   return { error: null };
 }
+
 export async function deleteUserAction(id: string) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session || session.user.role !== "admin") throw new Error("Forbidden");
@@ -71,8 +68,24 @@ export async function deleteUserAction(id: string) {
 
     revalidatePath("/admin/users");
     return { error: null };
-  } catch (err: any) {
-    console.error("Delete error:", err);
-    throw new Error(err?.message ?? "Delete failed");
+  } catch (err: unknown) {
+    throw new Error(err instanceof Error ? err.message : "Delete failed");
   }
+  
+}
+export async function createDepartmentAction(name: string) {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session || session.user.role !== "admin") throw new Error("Forbidden");
+  const [row] = (await sql`
+    INSERT INTO departments (name) VALUES (${name}) RETURNING id
+  `) as unknown as { id: string }[];
+  revalidatePath("/admin/users");
+  return { id: row.id };
+}
+
+export async function deleteDepartmentAction(id: string) {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session || session.user.role !== "admin") throw new Error("Forbidden");
+  await sql`DELETE FROM departments WHERE id = ${id}`;
+  revalidatePath("/admin/users");
 }

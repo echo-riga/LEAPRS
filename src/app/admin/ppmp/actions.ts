@@ -30,29 +30,30 @@ export async function createPpmpAction(data: PpmpPayload) {
 
   await sql`
     INSERT INTO ppmp (
-      aip_code, school_year_id, department_id, ppa, initiative_level,
-      mfo_category, pillar, intended_outcome, sdg_coding, joint_initiative,
-      planned_outputs, success_indicator, milestone, budget_allocation,
-      ppa_owner, target_implementation, created_by_id
-    ) VALUES (
-      ${data.aip_code},
-      ${data.school_year_id || null},
-      ${data.department_id || null},
-      ${data.ppa},
-      ${data.initiative_level || null},
-      ${data.mfo_category || null},
-      ${data.pillar || null},
-      ${data.intended_outcome || null},
-      ${data.sdg_coding || null},
-      ${data.joint_initiative || null},
-      ${data.planned_outputs || null},
-      ${data.success_indicator || null},
-      ${data.milestone || null},
-      ${data.budget_allocation || null},
-      ${data.ppa_owner || null},
-      ${data.target_implementation || null},
-      ${session.user.id}
-    )
+  aip_code, school_year_id, department_id, ppa, initiative_level,
+  mfo_category, pillar, intended_outcome, sdg_coding, joint_initiative,
+  planned_outputs, success_indicator, milestone, budget_allocation,
+  remaining_budget, ppa_owner, target_implementation, created_by_id
+) VALUES (
+  ${data.aip_code},
+  ${data.school_year_id || null},
+  ${data.department_id || null},
+  ${data.ppa},
+  ${data.initiative_level || null},
+  ${data.mfo_category || null},
+  ${data.pillar || null},
+  ${data.intended_outcome || null},
+  ${data.sdg_coding || null},
+  ${data.joint_initiative || null},
+  ${data.planned_outputs || null},
+  ${data.success_indicator || null},
+  ${data.milestone || null},
+  ${data.budget_allocation || null},
+  ${data.budget_allocation || null},
+  ${data.ppa_owner || null},
+  ${data.target_implementation || null},
+  ${session.user.id}
+)
   `;
 
   revalidatePath("/admin/ppmp");

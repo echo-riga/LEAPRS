@@ -1274,97 +1274,191 @@ function PpmpDetailDialog({
 }
 
 // ── track box ─────────────────────────────────────────────────────────────────
-
-function TrackBox({ track, index }: { track: TrackEntry; index: number }) {
+function TrackBox({ track }: { track: TrackEntry }) {
   const meta = TRACK_STATUS_META[track.status] ?? {
     label: track.status,
     color: "#555",
     bg: "#f5f5f5",
   };
+
+  const [open, setOpen] = useState(false);
+const [files, setFiles] = useState<{ id: string; name: string; mimeType: string }[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleOpen() {
+    setOpen(true);
+    if (files.length > 0) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/drive/folder-files?trackId=${track.id}`);
+      if (!res.ok) throw new Error("Failed to load files");
+      const data = await res.json();
+      setFiles(data.files ?? []);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function getIcon(mimeType: string) {
+    if (mimeType.includes("pdf")) return "📄";
+    if (mimeType.includes("image")) return "🖼️";
+    if (mimeType.includes("word") || mimeType.includes("document")) return "📝";
+    if (mimeType.includes("sheet") || mimeType.includes("excel")) return "📊";
+    return "📎";
+  }
+
   return (
-    <Box
-      sx={{
-        border: `2px solid ${meta.color}40`,
-        borderRadius: 3,
-        p: 2,
-        bgcolor: meta.bg,
-        minWidth: 180,
-        maxWidth: 220,
-        flexShrink: 0,
-        position: "relative",
-      }}
-    >
-      {track.office && (
+    <>
+      <Box
+        sx={{
+          border: `2px solid ${meta.color}40`,
+          borderRadius: 3,
+          p: 2,
+          bgcolor: meta.bg,
+          minWidth: 180,
+          maxWidth: 220,
+          flexShrink: 0,
+        }}
+      >
+        {track.office && (
+          <Typography
+            variant="caption"
+            color="text.disabled"
+            fontWeight={600}
+            sx={{
+              textTransform: "uppercase",
+              letterSpacing: 0.8,
+              display: "block",
+              mb: 0.5,
+            }}
+          >
+            {track.office}
+          </Typography>
+        )}
+        <Chip
+          label={meta.label}
+          size="small"
+          sx={{
+            bgcolor: meta.color,
+            color: "white",
+            fontWeight: 700,
+            fontSize: 11,
+            mb: 1.5,
+          }}
+        />
+        {track.file_url && (
+          <Box
+            onClick={handleOpen}
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 0.5,
+              color: meta.color,
+              fontSize: 12,
+              cursor: "pointer",
+              mb: 1,
+              "&:hover": { textDecoration: "underline" },
+            }}
+          >
+            <FolderOutlined sx={{ fontSize: 14 }} />
+            View Files
+          </Box>
+        )}
+        {track.remarks && (
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ display: "block", fontStyle: "italic" }}
+          >
+            {track.remarks}
+          </Typography>
+        )}
         <Typography
           variant="caption"
           color="text.disabled"
-          fontWeight={600}
-          sx={{
-            textTransform: "uppercase",
-            letterSpacing: 0.8,
-            display: "block",
-            mb: 0.5,
-          }}
+          sx={{ display: "block", mt: 1 }}
         >
-          {track.office}
+          {new Date(track.actioned_at).toLocaleDateString("en-PH", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          })}
         </Typography>
-      )}
-      <Chip
-        label={meta.label}
-        size="small"
-        sx={{
-          bgcolor: meta.color,
-          color: "white",
-          fontWeight: 700,
-          fontSize: 11,
-          mb: 1.5,
-        }}
-      />
-      {track.file_url && (
-        <Box
-          component="a"
-          href={track.file_url}
-          target="_blank"
-          rel="noopener noreferrer"
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            gap: 0.5,
-            color: meta.color,
-            fontSize: 12,
-            textDecoration: "none",
-            mb: 1,
-            "&:hover": { textDecoration: "underline" },
-          }}
-        >
-          <FolderOutlined sx={{ fontSize: 14 }} />
-          View Files
-        </Box>
-      )}
-      {track.remarks && (
-        <Typography
-          variant="caption"
-          color="text.secondary"
-          sx={{ display: "block", fontStyle: "italic" }}
-        >
-          {track.remarks}
-        </Typography>
-      )}
-      <Typography
-        variant="caption"
-        color="text.disabled"
-        sx={{ display: "block", mt: 1 }}
+      </Box>
+
+      {/* Files dialog */}
+      <Dialog
+        open={open}
+        onClose={() => setOpen(false)}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 3 } }}
       >
-        {new Date(track.actioned_at).toLocaleDateString("en-PH", {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-        })}
-      </Typography>
-    </Box>
+        <DialogTitle
+          sx={{
+            fontWeight: 700,
+            pb: 1,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          Files
+          <IconButton size="small" onClick={() => setOpen(false)}>
+            <CloseOutlined />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent>
+          {loading ? (
+            <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+              <CircularProgress size={24} sx={{ color: "#2e7d32" }} />
+            </Box>
+          ) : error ? (
+            <Alert severity="error">{error}</Alert>
+          ) : files.length === 0 ? (
+            <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
+              No files found.
+            </Typography>
+          ) : (
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+              {files.map((file) => (
+                <Box
+                  key={file.id}
+                  component="a"
+                  href={`/api/drive/file/${file.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1.5,
+                    p: 1.5,
+                    borderRadius: 2,
+                    border: "1px solid #e8f5e9",
+                    textDecoration: "none",
+                    color: "text.primary",
+                    "&:hover": { bgcolor: "#f1f8e9" },
+                  }}
+                >
+                  <Typography sx={{ fontSize: 20 }}>
+                    {getIcon(file.mimeType)}
+                  </Typography>
+                  <Typography variant="body2" fontWeight={600} noWrap>
+                    {file.name}
+                  </Typography>
+                </Box>
+              ))}
+            </Box>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
-
 // ── request timeline dialog ───────────────────────────────────────────────────
 
 function RequestTimelineDialog({
@@ -1529,7 +1623,7 @@ function RequestTimelineDialog({
                   key={track.id}
                   sx={{ display: "flex", alignItems: "center", gap: 1 }}
                 >
-                  <TrackBox track={track} index={i} />
+                 <TrackBox key={track.id} track={track} />
                   {i < tracks.length - 1 && (
                     <ArrowForwardOutlined
                       sx={{ color: "#c8e6c9", fontSize: 28, flexShrink: 0 }}

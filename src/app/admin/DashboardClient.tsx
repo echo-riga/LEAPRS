@@ -1,5 +1,15 @@
 "use client";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
 
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
+import { TrendingUpOutlined } from "@mui/icons-material";
 import { useEffect, useState } from "react";
 import {
   Box,
@@ -12,6 +22,7 @@ import {
   MenuItem,
   Skeleton,
   Divider,
+  Button,
 } from "@mui/material";
 import {
   ArticleOutlined,
@@ -23,6 +34,10 @@ import {
 } from "@mui/icons-material";
 import { fetchDashboardStats } from "./action";
 import { PieChart, Pie, Cell, Tooltip } from "recharts";
+import { fetchAipReport } from "./action";
+import * as XLSX from "xlsx";
+import { DownloadOutlined } from "@mui/icons-material";
+
 type Stats = {
   total_requests: number;
   submitted: number;
@@ -39,6 +54,13 @@ type Stats = {
   inhouse_count: number; // ← add this
   total_requested: number;
   in_progress_budget: number;
+  monthly_trends: {
+    month: string;
+    submitted: number;
+    waiting_approval: number;
+    completed: number;
+    rejected: number;
+  }[];
 };
 
 type Props = {
@@ -153,6 +175,44 @@ export function AdminDashboardClient({ departments, schoolYears }: Props) {
       .finally(() => setLoading(false));
   }, [filterDept, filterSY]);
 
+  async function handleDownloadAip() {
+    const rows = await fetchAipReport({
+      departmentId: filterDept,
+      schoolYearId: filterSY,
+    });
+
+    const fmt = (n: number) =>
+      Number(n).toLocaleString("en-PH", { minimumFractionDigits: 2 });
+
+    const wsData = [
+      ["AIP Code", "Department", "Description", "Allocated", "Requested", "Balance"],
+      ...rows.map((r) => [
+        r.aip_code,
+        r.department ?? "",
+        r.description,
+        fmt(r.allocated),
+        fmt(r.requested),
+        fmt(r.balance),
+      ]),
+    ];
+
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+    // Column widths
+    ws["!cols"] = [
+      { wch: 12 },
+      { wch: 20 },
+      { wch: 50 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 18 },
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "AIP Report");
+    XLSX.writeFile(wb, `AIP_Report_${new Date().toISOString().split("T")[0]}.xlsx`);
+  }
+
   const utilizedPct =
     stats && stats.total_budget > 0
       ? ((stats.utilized_budget / stats.total_budget) * 100).toFixed(1)
@@ -160,31 +220,31 @@ export function AdminDashboardClient({ departments, schoolYears }: Props) {
 
   const statusRows = stats
     ? [
-        { label: "Submitted", value: stats.submitted, color: "#1565c0" },
-        {
-          label: "Waiting Approval",
-          value: stats.waiting_approval,
-          color: "#e65100",
-        },
-        { label: "Approved", value: stats.approved, color: "#2e7d32" },
-        {
-          label: "Training Ongoing",
-          value: stats.training_ongoing,
-          color: "#6a1b9a",
-        },
-        {
-          label: "Pending Completion Docs",
-          value: stats.pending_completion_docs,
-          color: "#f9a825",
-        },
-        {
-          label: "Pending Completion Approval",
-          value: stats.pending_completion_approval,
-          color: "#f57f17",
-        },
-        { label: "Completed", value: stats.completed, color: "#1b5e20" },
-        { label: "Rejected", value: stats.rejected, color: "#b71c1c" },
-      ]
+      { label: "Submitted", value: stats.submitted, color: "#1565c0" },
+      {
+        label: "Waiting Approval",
+        value: stats.waiting_approval,
+        color: "#e65100",
+      },
+      { label: "Approved", value: stats.approved, color: "#2e7d32" },
+      {
+        label: "Training Ongoing",
+        value: stats.training_ongoing,
+        color: "#6a1b9a",
+      },
+      {
+        label: "Pending Completion Docs",
+        value: stats.pending_completion_docs,
+        color: "#f9a825",
+      },
+      {
+        label: "Pending Completion Approval",
+        value: stats.pending_completion_approval,
+        color: "#f57f17",
+      },
+      { label: "Completed", value: stats.completed, color: "#1b5e20" },
+      { label: "Rejected", value: stats.rejected, color: "#b71c1c" },
+    ]
     : [];
 
   return (
@@ -243,6 +303,21 @@ export function AdminDashboardClient({ departments, schoolYears }: Props) {
             ))}
           </Select>
         </FormControl>
+
+        <Button
+          variant="contained"
+          startIcon={<DownloadOutlined />}
+          onClick={handleDownloadAip}
+          sx={{
+            textTransform: "none",
+            bgcolor: "#2e7d32",
+            "&:hover": { bgcolor: "#1b5e20" },
+            borderRadius: 2,
+            fontWeight: 600,
+          }}
+        >
+          Download AIP Report
+        </Button>
       </Box>
 
       {/* Top stats */}
@@ -271,9 +346,9 @@ export function AdminDashboardClient({ departments, schoolYears }: Props) {
             value={
               stats
                 ? stats.submitted +
-                  stats.waiting_approval +
-                  stats.pending_completion_docs +
-                  stats.pending_completion_approval
+                stats.waiting_approval +
+                stats.pending_completion_docs +
+                stats.pending_completion_approval
                 : 0
             }
             icon={<PendingActionsOutlined />}
@@ -383,85 +458,85 @@ export function AdminDashboardClient({ departments, schoolYears }: Props) {
               <Skeleton height={120} />
             ) : (
               <Box>
-  <Box sx={{ mb: 3 }}>
-    <Typography variant="caption" color="text.disabled" fontWeight={600}
-      sx={{ textTransform: "uppercase", letterSpacing: 1 }}>
-      Total Allocated Budget (PPMP)
-    </Typography>
-    <Typography variant="h5" fontWeight={700} color="#1b5e20" sx={{ mt: 0.5 }}>
-      {fmt(stats?.total_budget ?? 0)}
-    </Typography>
-  </Box>
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="caption" color="text.disabled" fontWeight={600}
+                    sx={{ textTransform: "uppercase", letterSpacing: 1 }}>
+                    Total Allocated Budget (PPMP)
+                  </Typography>
+                  <Typography variant="h5" fontWeight={700} color="#1b5e20" sx={{ mt: 0.5 }}>
+                    {fmt(stats?.total_budget ?? 0)}
+                  </Typography>
+                </Box>
 
-  <Divider sx={{ mb: 3, borderColor: "#e8f5e9" }} />
+                <Divider sx={{ mb: 3, borderColor: "#e8f5e9" }} />
 
-  {/* Utilized */}
-  <Box sx={{ mb: 2 }}>
-    <Box sx={{ display: "flex", justifyContent: "space-between" }}>
-      <Typography variant="body2" color="text.secondary">Utilized (Completed)</Typography>
-      <Typography variant="body2" fontWeight={700} color="#2e7d32">
-        {stats && stats.total_budget > 0
-          ? ((stats.utilized_budget / stats.total_budget) * 100).toFixed(1)
-          : "0.0"}%
-      </Typography>
-    </Box>
-    <ProgressBar
-      value={stats && stats.total_budget > 0
-        ? (stats.utilized_budget / stats.total_budget) * 100
-        : 0}
-      color="#2e7d32"
-    />
-    <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
-      {fmt(stats?.utilized_budget ?? 0)}
-    </Typography>
-  </Box>
+                {/* Utilized */}
+                <Box sx={{ mb: 2 }}>
+                  <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                    <Typography variant="body2" color="text.secondary">Utilized (Completed)</Typography>
+                    <Typography variant="body2" fontWeight={700} color="#2e7d32">
+                      {stats && stats.total_budget > 0
+                        ? ((stats.utilized_budget / stats.total_budget) * 100).toFixed(1)
+                        : "0.0"}%
+                    </Typography>
+                  </Box>
+                  <ProgressBar
+                    value={stats && stats.total_budget > 0
+                      ? (stats.utilized_budget / stats.total_budget) * 100
+                      : 0}
+                    color="#2e7d32"
+                  />
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
+                    {fmt(stats?.utilized_budget ?? 0)}
+                  </Typography>
+                </Box>
 
-  {/* In Progress */}
-  <Box sx={{ mb: 2 }}>
-    <Box sx={{ display: "flex", justifyContent: "space-between" }}>
-      <Typography variant="body2" color="text.secondary">In Progress</Typography>
-      <Typography variant="body2" fontWeight={700} color="#6a1b9a">
-        {stats && stats.total_budget > 0
-          ? ((stats.in_progress_budget / stats.total_budget) * 100).toFixed(1)
-          : "0.0"}%
-      </Typography>
-    </Box>
-    <ProgressBar
-      value={stats && stats.total_budget > 0
-        ? (stats.in_progress_budget / stats.total_budget) * 100
-        : 0}
-      color="#6a1b9a"
-    />
-    <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
-      {fmt(stats?.in_progress_budget ?? 0)}
-    </Typography>
-  </Box>
+                {/* In Progress */}
+                <Box sx={{ mb: 2 }}>
+                  <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                    <Typography variant="body2" color="text.secondary">In Progress</Typography>
+                    <Typography variant="body2" fontWeight={700} color="#6a1b9a">
+                      {stats && stats.total_budget > 0
+                        ? ((stats.in_progress_budget / stats.total_budget) * 100).toFixed(1)
+                        : "0.0"}%
+                    </Typography>
+                  </Box>
+                  <ProgressBar
+                    value={stats && stats.total_budget > 0
+                      ? (stats.in_progress_budget / stats.total_budget) * 100
+                      : 0}
+                    color="#6a1b9a"
+                  />
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
+                    {fmt(stats?.in_progress_budget ?? 0)}
+                  </Typography>
+                </Box>
 
-  {/* Remaining */}
-  <Box>
-    <Box sx={{ display: "flex", justifyContent: "space-between" }}>
-      <Typography variant="body2" color="text.secondary">Remaining</Typography>
-      <Typography variant="body2" fontWeight={700} color="#e65100">
-        {stats && stats.total_budget > 0
-          ? (((stats.total_budget - stats.utilized_budget - stats.in_progress_budget) / stats.total_budget) * 100).toFixed(1)
-          : "0.0"}%
-      </Typography>
-    </Box>
-    <ProgressBar
-      value={stats && stats.total_budget > 0
-        ? ((stats.total_budget - stats.utilized_budget - stats.in_progress_budget) / stats.total_budget) * 100
-        : 0}
-      color="#e65100"
-    />
-    <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
-      {fmt((stats?.total_budget ?? 0) - (stats?.utilized_budget ?? 0) - (stats?.in_progress_budget ?? 0))}
-    </Typography>
-  </Box>
-</Box>
+                {/* Remaining */}
+                <Box>
+                  <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                    <Typography variant="body2" color="text.secondary">Remaining</Typography>
+                    <Typography variant="body2" fontWeight={700} color="#e65100">
+                      {stats && stats.total_budget > 0
+                        ? (((stats.total_budget - stats.utilized_budget - stats.in_progress_budget) / stats.total_budget) * 100).toFixed(1)
+                        : "0.0"}%
+                    </Typography>
+                  </Box>
+                  <ProgressBar
+                    value={stats && stats.total_budget > 0
+                      ? ((stats.total_budget - stats.utilized_budget - stats.in_progress_budget) / stats.total_budget) * 100
+                      : 0}
+                    color="#e65100"
+                  />
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
+                    {fmt((stats?.total_budget ?? 0) - (stats?.utilized_budget ?? 0) - (stats?.in_progress_budget ?? 0))}
+                  </Typography>
+                </Box>
+              </Box>
             )}
           </Paper>
         </Grid>
-        <Grid size={{ xs: 12 }}>
+        <Grid size={{ xs: 12, md: 5 }}>
           <Paper
             elevation={0}
             sx={{ p: 3, borderRadius: 3, border: "1px solid #e8f5e9" }}
@@ -581,6 +656,44 @@ export function AdminDashboardClient({ departments, schoolYears }: Props) {
                   </Typography>
                 </Box>
               </Box>
+            )}
+          </Paper>
+
+        </Grid>
+        <Grid size={{ xs: 12, md: 7 }}>
+          <Paper
+            elevation={0}
+            sx={{ p: 3, borderRadius: 3, border: "1px solid #e8f5e9", height: "100%" }}
+          >
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2.5 }}>
+              <TrendingUpOutlined sx={{ color: "#2e7d32" }} />
+              <Typography variant="h6" fontWeight={600}>
+                Monthly Request Trends
+              </Typography>
+            </Box>
+
+            {loading ? (
+              <Skeleton height={300} />
+            ) : !stats?.monthly_trends?.length ? (
+              <Box sx={{ height: 300, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Typography variant="body2" color="text.disabled">No data available</Typography>
+              </Box>
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart
+                  data={stats.monthly_trends}
+                  margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis dataKey="month" tick={{ fontSize: 12, fill: "#888" }} axisLine={false} tickLine={false} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: "#888" }} axisLine={false} tickLine={false} width={30} />
+                  <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e8f5e9", fontSize: 13 }} />
+                  <Legend wrapperStyle={{ fontSize: 13, paddingTop: 16 }} />
+                  <Line type="monotone" dataKey="submitted" name="Submitted" stroke="#1565c0" strokeWidth={2.5} dot={{ r: 4, fill: "#1565c0" }} activeDot={{ r: 6 }} />
+                  <Line type="monotone" dataKey="completed" name="Completed" stroke="#2e7d32" strokeWidth={2.5} dot={{ r: 4, fill: "#2e7d32" }} activeDot={{ r: 6 }} />
+                  <Line type="monotone" dataKey="rejected" name="Rejected" stroke="#b71c1c" strokeWidth={2.5} dot={{ r: 4, fill: "#b71c1c" }} activeDot={{ r: 6 }} />
+                </LineChart>
+              </ResponsiveContainer>
             )}
           </Paper>
         </Grid>
