@@ -158,6 +158,9 @@ export function AdminRequestDialog({
       }
 
       setUploadStatus("Saving request…");
+
+      if (!entry) return; // ← add this line
+
       const folderUrl = `https://drive.google.com/drive/folders/${folderId}`;
       await adminSubmitTrainingRequest({
         ppmpId: entry.id ?? (entry as any).aip_code,
@@ -183,8 +186,10 @@ export function AdminRequestDialog({
   return (
     <Dialog open={open} onClose={loading ? undefined : handleClose} maxWidth="md" fullWidth
       PaperProps={{ sx: { borderRadius: 3 } }}>
-      <DialogTitle sx={{ bgcolor: "#1b5e20", color: "white", px: 3, py: 2.5,
-        display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+      <DialogTitle sx={{
+        bgcolor: "#1b5e20", color: "white", px: 3, py: 2.5,
+        display: "flex", justifyContent: "space-between", alignItems: "flex-start"
+      }}>
         <Box>
           <Typography variant="caption" sx={{ opacity: 0.6, letterSpacing: 1.5, fontSize: 11 }}>
             TRAINING REQUEST
@@ -298,8 +303,10 @@ export function AdminRequestDialog({
             <SectionLabel label="BUDGET REQUESTED *" />
             <Divider sx={{ mb: 2, borderColor: "#e8f5e9" }} />
             {budgetAllocation !== null && (
-              <Box sx={{ mb: 2, p: 1.5, bgcolor: "#f1f8e9", borderRadius: 2, border: "1px solid #c8e6c9",
-                display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <Box sx={{
+                mb: 2, p: 1.5, bgcolor: "#f1f8e9", borderRadius: 2, border: "1px solid #c8e6c9",
+                display: "flex", justifyContent: "space-between", alignItems: "center"
+              }}>
                 <Typography variant="body2" color="text.secondary">Allocated Budget (PPMP)</Typography>
                 <Typography variant="body2" fontWeight={700} color="#2e7d32">
                   ₱{budgetAllocation.toLocaleString("en-PH", { minimumFractionDigits: 2 })}
@@ -386,18 +393,20 @@ export function AdminRequestDialog({
             </List>
 
             {/* Summary */}
-            <Box sx={{ mt: 2, p: 2, borderRadius: 2, border: "1px solid",
+            <Box sx={{
+              mt: 2, p: 2, borderRadius: 2, border: "1px solid",
               bgcolor: allRequiredUploaded ? "#f1f8e9" : "#fff3e0",
-              borderColor: allRequiredUploaded ? "#c8e6c9" : "#ffe0b2" }}>
+              borderColor: allRequiredUploaded ? "#c8e6c9" : "#ffe0b2"
+            }}>
               <Typography variant="body2" fontWeight={600}
                 color={allRequiredUploaded ? "#2e7d32" : "#e65100"}>
                 {allRequiredUploaded
                   ? `✓ All required documents uploaded (${uploads.length} file${uploads.length !== 1 ? "s" : ""})`
                   : missingRequired.length > 0
-                  ? `${missingRequired.length} required document${missingRequired.length !== 1 ? "s" : ""} still missing`
-                  : !requestorName.trim()
-                  ? "Requestor name is required"
-                  : "Budget requested is required before submitting"}
+                    ? `${missingRequired.length} required document${missingRequired.length !== 1 ? "s" : ""} still missing`
+                    : !requestorName.trim()
+                      ? "Requestor name is required"
+                      : "Budget requested is required before submitting"}
               </Typography>
             </Box>
           </>
