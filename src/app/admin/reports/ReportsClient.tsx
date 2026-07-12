@@ -19,7 +19,7 @@ export function AdminReportsClient() {
   return (
     <Box>
       <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" fontWeight={700} color="#1b5e20">
+        <Typography variant="h4" fontWeight={700} color="text.primary">
           Reports
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -35,29 +35,34 @@ export function AdminReportsClient() {
               sx={{
                 p: 4,
                 borderRadius: 3,
-                border: "1px solid #e8f5e9",
                 bgcolor: "white",
                 display: "flex",
                 flexDirection: "column",
                 gap: 2,
-                "&:hover": { borderColor: "#2e7d32", bgcolor: "#f9fdf9" },
-                transition: "all 0.2s",
+                transition: "all 0.25s ease",
+                "&:hover": {
+                  borderColor: "rgba(27, 122, 61, 0.2)",
+                  boxShadow: "0 8px 24px rgba(27, 122, 61, 0.08)",
+                  transform: "translateY(-2px)",
+                },
               }}
             >
               <Box
                 sx={{
-                  bgcolor: "#e8f5e9",
-                  borderRadius: 2,
+                  background:
+                    "linear-gradient(135deg, rgba(27, 122, 61, 0.08), rgba(27, 122, 61, 0.04))",
+                  borderRadius: 2.5,
                   p: 1.5,
                   display: "flex",
                   width: "fit-content",
-                  color: "#2e7d32",
+                  color: "primary.main",
+                  border: "1px solid rgba(27, 122, 61, 0.06)",
                 }}
               >
                 <AssessmentOutlined />
               </Box>
               <Box>
-                <Typography fontWeight={600} sx={{ mb: 0.5 }}>
+                <Typography fontWeight={600} color="text.primary" sx={{ mb: 0.5 }}>
                   {report.title}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
@@ -68,12 +73,10 @@ export function AdminReportsClient() {
                 variant="outlined"
                 size="small"
                 startIcon={<DownloadOutlined />}
+                color="primary"
                 sx={{
                   mt: "auto",
                   borderRadius: 2,
-                  textTransform: "none",
-                  borderColor: "#2e7d32",
-                  color: "#2e7d32",
                 }}
               >
                 Export

@@ -5,12 +5,10 @@ import Image from "next/image";
 import {
   Box,
   Typography,
-  Button,
   Avatar,
   Menu,
   MenuItem,
   Divider,
-  IconButton,
 } from "@mui/material";
 import { KeyboardArrowDownOutlined, LogoutOutlined } from "@mui/icons-material";
 import { authClient } from "@/lib/auth-client";
@@ -44,8 +42,10 @@ export function UserTopbar({ user }: Props) {
     <Box
       sx={{
         height: 64,
-        bgcolor: "white",
-        borderBottom: "1px solid #e8f5e9",
+        bgcolor: "rgba(255,255,255,0.85)",
+        backdropFilter: "blur(12px)",
+        borderBottom: "1px solid rgba(27, 122, 61, 0.06)",
+        boxShadow: "0 1px 8px rgba(0, 0, 0, 0.03)",
         display: "flex",
         alignItems: "center",
         px: 4,
@@ -57,17 +57,30 @@ export function UserTopbar({ user }: Props) {
     >
       {/* Logo */}
       <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mr: "auto" }}>
-        <Image
-          src="/login-logo.png"
-          alt="LEAPRS"
-          width={30}
-          height={30}
-          style={{ objectFit: "contain" }}
-        />
+        <Box
+          sx={{
+            width: 34,
+            height: 34,
+            borderRadius: "9px",
+            bgcolor: "rgba(27, 122, 61, 0.06)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            border: "1px solid rgba(27, 122, 61, 0.08)",
+          }}
+        >
+          <Image
+            src="/login-logo.png"
+            alt="LEAPRS"
+            width={22}
+            height={22}
+            style={{ objectFit: "contain" }}
+          />
+        </Box>
         <Typography
           variant="subtitle1"
           fontWeight={700}
-          sx={{ color: "#1b5e20", letterSpacing: 1 }}
+          sx={{ color: "#145a2c", letterSpacing: 1 }}
         >
           LEAPRS
         </Typography>
@@ -81,17 +94,20 @@ export function UserTopbar({ user }: Props) {
           alignItems: "center",
           gap: 1,
           cursor: "pointer",
-          px: 1,
+          px: 1.5,
           py: 0.5,
-          borderRadius: 2,
-          "&:hover": { bgcolor: "#f1f8e9" },
+          borderRadius: 2.5,
+          transition: "all 0.2s ease",
+          "&:hover": {
+            bgcolor: "rgba(27, 122, 61, 0.04)",
+          },
         }}
       >
         <Avatar
           sx={{
             width: 32,
             height: 32,
-            bgcolor: "#2e7d32",
+            background: "linear-gradient(135deg, #1b7a3d 0%, #145a2c 100%)",
             fontSize: 12,
             fontWeight: 700,
           }}
@@ -102,18 +118,18 @@ export function UserTopbar({ user }: Props) {
           <Typography
             variant="body2"
             fontWeight={600}
-            color="#1a1a1a"
+            color="#1a2e1a"
             lineHeight={1.2}
           >
             {user.name}
           </Typography>
-          <Typography variant="caption" color="text.disabled">
+          <Typography variant="caption" color="text.secondary" sx={{ fontSize: 11 }}>
             Employee
           </Typography>
         </Box>
         <KeyboardArrowDownOutlined
           fontSize="small"
-          sx={{ color: "text.disabled" }}
+          sx={{ color: "text.disabled", fontSize: 18 }}
         />
       </Box>
 
@@ -126,13 +142,34 @@ export function UserTopbar({ user }: Props) {
         anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
         slotProps={{
           paper: {
-            elevation: 2,
-            sx: { mt: 1, minWidth: 180, borderRadius: 2 },
+            elevation: 0,
+            sx: {
+              mt: 1.5,
+              minWidth: 200,
+              borderRadius: 3,
+              boxShadow: "0 8px 24px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04)",
+              border: "1px solid rgba(27, 122, 61, 0.06)",
+              overflow: "visible",
+              "&::before": {
+                content: '""',
+                display: "block",
+                position: "absolute",
+                top: 0,
+                right: 20,
+                width: 10,
+                height: 10,
+                bgcolor: "white",
+                transform: "translateY(-50%) rotate(45deg)",
+                border: "1px solid rgba(27, 122, 61, 0.06)",
+                borderBottom: "none",
+                borderRight: "none",
+              },
+            },
           },
         }}
       >
-        <Box sx={{ px: 2, py: 1.5 }}>
-          <Typography variant="body2" fontWeight={600}>
+        <Box sx={{ px: 2.5, py: 2 }}>
+          <Typography variant="body2" fontWeight={600} color="text.primary">
             {user.name}
           </Typography>
           <Typography variant="caption" color="text.secondary">
@@ -142,10 +179,23 @@ export function UserTopbar({ user }: Props) {
         <Divider />
         <MenuItem
           onClick={handleLogout}
-          sx={{ gap: 1.5, color: "#c62828", py: 1.2 }}
+          sx={{
+            gap: 1.5,
+            color: "#c62828",
+            py: 1.2,
+            mx: 1,
+            my: 0.5,
+            borderRadius: 2,
+            transition: "all 0.15s ease",
+            "&:hover": {
+              bgcolor: "rgba(198, 40, 40, 0.06)",
+            },
+          }}
         >
           <LogoutOutlined fontSize="small" />
-          <Typography variant="body2">Sign out</Typography>
+          <Typography variant="body2" fontWeight={500}>
+            Sign out
+          </Typography>
         </MenuItem>
       </Menu>
     </Box>

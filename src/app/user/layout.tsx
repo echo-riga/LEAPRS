@@ -13,7 +13,12 @@ export default async function DashboardLayout({
   if (session.user.role === "admin") redirect("/admin");
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f0f4f0" }}>
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "linear-gradient(135deg, #f5f7f5 0%, #eef2ee 100%)",
+      }}
+    >
       <UserTopbar
         user={{
           name: session.user.name,

@@ -13,7 +13,13 @@ export default async function AdminLayout({
   if (session.user.role !== "admin") redirect("/unauthorized");
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", background: "#f0f4f0" }}>
+    <div
+      style={{
+        display: "flex",
+        minHeight: "100vh",
+        background: "linear-gradient(135deg, #f5f7f5 0%, #eef2ee 100%)",
+      }}
+    >
       <AdminSidebar
         user={{
           name: session.user.name,
