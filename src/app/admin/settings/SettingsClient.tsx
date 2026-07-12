@@ -47,7 +47,7 @@ export function AdminSettingsClient() {
   return (
     <Box>
       <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" fontWeight={700} color="#1b5e20">
+        <Typography variant="h4" fontWeight={700} color="text.primary">
           Settings
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -59,7 +59,7 @@ export function AdminSettingsClient() {
       <Typography
         variant="subtitle2"
         color="text.secondary"
-        sx={{ mb: 1, letterSpacing: 1 }}
+        sx={{ mb: 1.5, letterSpacing: 1.5, fontSize: 11, fontWeight: 700 }}
       >
         SYSTEM
       </Typography>
@@ -67,7 +67,6 @@ export function AdminSettingsClient() {
         elevation={0}
         sx={{
           borderRadius: 3,
-          border: "1px solid #e8f5e9",
           overflow: "hidden",
           mb: 4,
         }}
@@ -75,13 +74,22 @@ export function AdminSettingsClient() {
         <List disablePadding>
           {toggleSettings.map((setting, index) => (
             <Box key={setting.key}>
-              <ListItem sx={{ px: 3, py: 2 }}>
+              <ListItem
+                sx={{
+                  px: 3,
+                  py: 2,
+                  transition: "background 0.2s ease",
+                  "&:hover": {
+                    bgcolor: "rgba(27, 122, 61, 0.02)",
+                  },
+                }}
+              >
                 <ListItemText
                   primary={setting.label}
                   secondary={setting.description}
                   slotProps={{
-                    primary: { fontWeight: 500 },
-                    secondary: { fontSize: 13 },
+                    primary: { fontWeight: 600, color: "text.primary" },
+                    secondary: { fontSize: 13, color: "text.secondary" },
                   }}
                 />
                 <Switch
@@ -90,9 +98,7 @@ export function AdminSettingsClient() {
                   onChange={() => handleToggle(setting.key)}
                 />
               </ListItem>
-              {index < toggleSettings.length - 1 && (
-                <Divider sx={{ borderColor: "#f1f8e9" }} />
-              )}
+              {index < toggleSettings.length - 1 && <Divider />}
             </Box>
           ))}
         </List>
@@ -102,39 +108,32 @@ export function AdminSettingsClient() {
       <Typography
         variant="subtitle2"
         color="text.secondary"
-        sx={{ mb: 1, letterSpacing: 1 }}
+        sx={{ mb: 1.5, letterSpacing: 1.5, fontSize: 11, fontWeight: 700 }}
       >
         APPLICATION
       </Typography>
       <Paper
         elevation={0}
-        sx={{ borderRadius: 3, border: "1px solid #e8f5e9", p: 3, mb: 4 }}
+        sx={{ borderRadius: 3, p: 3, mb: 4 }}
       >
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
-          <Box sx={{ display: "flex", alignItems: "flex-end", gap: 1 }}>
-            <TextField
-              label="App Name"
-              defaultValue="LEAF"
-              variant="standard"
-              fullWidth
-            />
-          </Box>
-          <Box sx={{ display: "flex", alignItems: "flex-end", gap: 1 }}>
-            <TextField
-              label="Support Email"
-              defaultValue="support@leaf.com"
-              variant="standard"
-              fullWidth
-            />
-          </Box>
+          <TextField
+            label="App Name"
+            defaultValue="LEAPRS"
+            fullWidth
+          />
+          <TextField
+            label="Support Email"
+            defaultValue="support@leaprs.com"
+            fullWidth
+          />
           <Button
             variant="contained"
             startIcon={<SaveOutlined />}
+            color="primary"
             sx={{
               alignSelf: "flex-start",
-              borderRadius: 2,
-              textTransform: "none",
-              bgcolor: "#2e7d32",
+              borderRadius: 2.5,
             }}
           >
             Save Changes

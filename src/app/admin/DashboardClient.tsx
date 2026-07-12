@@ -5,11 +5,13 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-
   Legend,
   ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
 } from "recharts";
-import { TrendingUpOutlined } from "@mui/icons-material";
 import { useEffect, useState } from "react";
 import {
   Box,
@@ -31,12 +33,11 @@ import {
   HourglassEmptyOutlined,
   AccountBalanceWalletOutlined,
   PendingActionsOutlined,
+  TrendingUpOutlined,
+  DownloadOutlined,
 } from "@mui/icons-material";
-import { fetchDashboardStats } from "./action";
-import { PieChart, Pie, Cell, Tooltip } from "recharts";
-import { fetchAipReport } from "./action";
+import { fetchDashboardStats, fetchAipReport } from "./action";
 import * as XLSX from "xlsx";
-import { DownloadOutlined } from "@mui/icons-material";
 
 type Stats = {
   total_requests: number;
@@ -97,35 +98,41 @@ function StatCard({
       sx={{
         p: 2.5,
         borderRadius: 3,
-        border: "1px solid #e8f5e9",
         bgcolor: "white",
         display: "flex",
         alignItems: "center",
         gap: 2,
         height: "100%",
+        transition: "all 0.25s ease",
+        "&:hover": {
+          boxShadow: "0 4px 16px rgba(27, 122, 61, 0.08)",
+          borderColor: "rgba(27, 122, 61, 0.12)",
+          transform: "translateY(-2px)",
+        },
       }}
     >
       <Box
         sx={{
-          bgcolor: `${color}18`,
-          borderRadius: 2,
+          background: `linear-gradient(135deg, ${color}20, ${color}10)`,
+          borderRadius: 2.5,
           p: 1.4,
           display: "flex",
           color,
           flexShrink: 0,
+          border: `1px solid ${color}15`,
         }}
       >
         {icon}
       </Box>
       <Box sx={{ minWidth: 0 }}>
         {loading ? (
-          <Skeleton width={60} height={32} />
+          <Skeleton width={60} height={32} sx={{ borderRadius: 1 }} />
         ) : (
-          <Typography variant="h5" fontWeight={700} lineHeight={1.2}>
+          <Typography variant="h5" fontWeight={700} lineHeight={1.2} color="text.primary">
             {value}
           </Typography>
         )}
-        <Typography variant="caption" color="text.secondary">
+        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
           {label}
         </Typography>
         {sub && (
@@ -142,9 +149,9 @@ function ProgressBar({ value, color }: { value: number; color: string }) {
   return (
     <Box
       sx={{
-        height: 8,
-        borderRadius: 4,
-        bgcolor: "#e8f5e9",
+        height: 6,
+        borderRadius: 3,
+        bgcolor: "rgba(27, 122, 61, 0.06)",
         overflow: "hidden",
         mt: 0.5,
       }}
@@ -153,9 +160,9 @@ function ProgressBar({ value, color }: { value: number; color: string }) {
         sx={{
           height: "100%",
           width: `${Math.min(value, 100)}%`,
-          bgcolor: color,
-          borderRadius: 4,
-          transition: "width 0.6s ease",
+          background: `linear-gradient(90deg, ${color}, ${color}cc)`,
+          borderRadius: 3,
+          transition: "width 0.8s cubic-bezier(0.4, 0, 0.2, 1)",
         }}
       />
     </Box>
@@ -213,10 +220,6 @@ export function AdminDashboardClient({ departments, schoolYears }: Props) {
     XLSX.writeFile(wb, `AIP_Report_${new Date().toISOString().split("T")[0]}.xlsx`);
   }
 
-  const utilizedPct =
-    stats && stats.total_budget > 0
-      ? ((stats.utilized_budget / stats.total_budget) * 100).toFixed(1)
-      : "0.0";
 
   const statusRows = stats
     ? [
@@ -251,7 +254,7 @@ export function AdminDashboardClient({ departments, schoolYears }: Props) {
     <Box>
       {/* Header */}
       <Box sx={{ mb: 3 }}>
-        <Typography variant="h4" fontWeight={700} color="#1b5e20">
+        <Typography variant="h4" fontWeight={700} color="text.primary">
           Dashboard
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -308,13 +311,8 @@ export function AdminDashboardClient({ departments, schoolYears }: Props) {
           variant="contained"
           startIcon={<DownloadOutlined />}
           onClick={handleDownloadAip}
-          sx={{
-            textTransform: "none",
-            bgcolor: "#2e7d32",
-            "&:hover": { bgcolor: "#1b5e20" },
-            borderRadius: 2,
-            fontWeight: 600,
-          }}
+          color="primary"
+          sx={{ borderRadius: 2.5 }}
         >
           Download AIP Report
         </Button>
@@ -375,11 +373,10 @@ export function AdminDashboardClient({ departments, schoolYears }: Props) {
             sx={{
               p: 3,
               borderRadius: 3,
-              border: "1px solid #e8f5e9",
               height: "100%",
             }}
           >
-            <Typography variant="h6" fontWeight={600} sx={{ mb: 2.5 }}>
+            <Typography variant="h6" fontWeight={600} color="text.primary" sx={{ mb: 2.5 }}>
               Request Status Breakdown
             </Typography>
             {loading ? (
@@ -441,15 +438,14 @@ export function AdminDashboardClient({ departments, schoolYears }: Props) {
             sx={{
               p: 3,
               borderRadius: 3,
-              border: "1px solid #e8f5e9",
               height: "100%",
             }}
           >
             <Box
               sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2.5 }}
             >
-              <AccountBalanceWalletOutlined sx={{ color: "#2e7d32" }} />
-              <Typography variant="h6" fontWeight={600}>
+              <AccountBalanceWalletOutlined sx={{ color: "primary.main" }} />
+              <Typography variant="h6" fontWeight={600} color="text.primary">
                 Budget Overview
               </Typography>
             </Box>
@@ -459,16 +455,16 @@ export function AdminDashboardClient({ departments, schoolYears }: Props) {
             ) : (
               <Box>
                 <Box sx={{ mb: 3 }}>
-                  <Typography variant="caption" color="text.disabled" fontWeight={600}
+                  <Typography variant="caption" color="text.secondary" fontWeight={600}
                     sx={{ textTransform: "uppercase", letterSpacing: 1 }}>
                     Total Allocated Budget (PPMP)
                   </Typography>
-                  <Typography variant="h5" fontWeight={700} color="#1b5e20" sx={{ mt: 0.5 }}>
+                  <Typography variant="h5" fontWeight={700} color="primary.dark" sx={{ mt: 0.5 }}>
                     {fmt(stats?.total_budget ?? 0)}
                   </Typography>
                 </Box>
 
-                <Divider sx={{ mb: 3, borderColor: "#e8f5e9" }} />
+                <Divider sx={{ mb: 3 }} />
 
                 {/* Utilized */}
                 <Box sx={{ mb: 2 }}>
@@ -539,13 +535,13 @@ export function AdminDashboardClient({ departments, schoolYears }: Props) {
         <Grid size={{ xs: 12, md: 5 }}>
           <Paper
             elevation={0}
-            sx={{ p: 3, borderRadius: 3, border: "1px solid #e8f5e9" }}
+            sx={{ p: 3, borderRadius: 3 }}
           >
             <Box
               sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2.5 }}
             >
-              <HourglassEmptyOutlined sx={{ color: "#2e7d32" }} />
-              <Typography variant="h6" fontWeight={600}>
+              <HourglassEmptyOutlined sx={{ color: "primary.main" }} />
+              <Typography variant="h6" fontWeight={600} color="text.primary">
                 Training Type Distribution
               </Typography>
             </Box>
@@ -663,11 +659,11 @@ export function AdminDashboardClient({ departments, schoolYears }: Props) {
         <Grid size={{ xs: 12, md: 7 }}>
           <Paper
             elevation={0}
-            sx={{ p: 3, borderRadius: 3, border: "1px solid #e8f5e9", height: "100%" }}
+            sx={{ p: 3, borderRadius: 3, height: "100%" }}
           >
             <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2.5 }}>
-              <TrendingUpOutlined sx={{ color: "#2e7d32" }} />
-              <Typography variant="h6" fontWeight={600}>
+              <TrendingUpOutlined sx={{ color: "primary.main" }} />
+              <Typography variant="h6" fontWeight={600} color="text.primary">
                 Monthly Request Trends
               </Typography>
             </Box>
