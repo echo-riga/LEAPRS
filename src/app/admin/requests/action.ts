@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { revalidatePath } from "next/cache";
+import { createSurveyFormsForRequest } from "@/lib/survey";
 
 export async function fetchStatusTrack(requestId: string) {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -35,7 +36,7 @@ export async function addStatusTrack(data: {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session || session.user.role !== "admin") throw new Error("Forbidden");
 
-  if (data.status === "approved") {
+  if (data.status === "approved" && data.office === "Finance") {
    const rows = (await sql`
   SELECT tr.budget_wanted, p.id AS ppmp_id, p.remaining_budget
   FROM training_requests tr
@@ -82,6 +83,14 @@ const wanted = Number(req.budget_wanted ?? 0);
       ${data.remarks || null}
     )
   `;
+
+  if (data.status === "completed") {
+    try {
+      await createSurveyFormsForRequest(data.requestId);
+    } catch (err) {
+      console.error("Survey forms creation failed:", err);
+    }
+  }
 
   revalidatePath("/admin/requests");
 }

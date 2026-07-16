@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Fragment } from "react";
 import {
   Box,
   Typography,
@@ -22,6 +22,8 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  useTheme,
+  useMediaQuery,
 } from "@mui/material";
 import {
   SearchOutlined,
@@ -32,10 +34,12 @@ import {
   CheckCircleOutlined,
   CancelOutlined,
   CloseOutlined,
+  AssessmentOutlined,
 } from "@mui/icons-material";
 import type { AdminRequest } from "./page";
 import { fetchStatusTrack, addStatusTrack } from "./action";
 import { fetchBudgetPreview } from "./action";
+import SurveySummaryPanel from "../../components/SurveySummaryPanel";
 
 const STATUS_OPTIONS = [
   "submitted",
@@ -247,8 +251,8 @@ function AddTrackDialog({
       return;
     }
 
-    // If approving, fetch budget preview and show confirm dialog first
-    if (status === "approved") {
+    // If approving and office is Finance, fetch budget preview and show confirm dialog first
+    if (status === "approved" && office === "Finance") {
       setLoading(true);
       try {
         const preview = await fetchBudgetPreview(requestId);
@@ -579,6 +583,9 @@ function SnakeTimeline({
   lastStatus: string | undefined;
   onAddOpen: () => void;
 }) {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+
   // Build full list including add/final box
   const allItems: ("track" | "add" | "final")[] = [
     ...tracks.map(() => "track" as const),
@@ -586,142 +593,99 @@ function SnakeTimeline({
     ...(isFinal ? (["final"] as const) : []),
   ];
 
-  const rows: (typeof allItems)[] = [];
-  for (let i = 0; i < allItems.length; i += ITEMS_PER_ROW) {
-    rows.push(allItems.slice(i, i + ITEMS_PER_ROW));
-  }
+  if (isMobile) {
+    return (
+      <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1.5, py: 1 }}>
+        {allItems.map((itemType, index) => {
+          const isLast = index === allItems.length - 1;
+          let node: React.ReactNode = null;
 
-  let globalIndex = 0;
-
-  return (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-      {rows.map((row, rowIndex) => {
-        const isReversed = rowIndex % 2 === 1;
-        const displayRow = isReversed ? [...row].reverse() : row;
-
-        return (
-          <Box
-            key={rowIndex}
-            sx={{ display: "flex", flexDirection: "column", gap: 2 }}
-          >
-            {/* Row of boxes */}
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              {displayRow.map((itemType, colIndex) => {
-                const actualIndex = isReversed
-                  ? rowIndex * ITEMS_PER_ROW + (row.length - 1 - colIndex)
-                  : rowIndex * ITEMS_PER_ROW + colIndex;
-
-                const isLast = colIndex === displayRow.length - 1;
-
-                let node: React.ReactNode = null;
-
-                if (itemType === "track") {
-                  const track = tracks[actualIndex];
-                  node = <TrackBox track={track} index={actualIndex} />;
-                } else if (itemType === "add") {
-                  node = (
-                    <Box
-                      onClick={onAddOpen}
-                      sx={{
-                        border: "2px dashed #c8e6c9",
-                        borderRadius: 3,
-                        p: 2,
-                        minWidth: 160,
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        gap: 1,
-                        cursor: "pointer",
-                        color: "#2e7d32",
-                        bgcolor: "white",
-                        transition: "all 0.2s",
-                        "&:hover": {
-                          bgcolor: "#e8f5e9",
-                          borderColor: "#2e7d32",
-                        },
-                      }}
-                    >
-                      <AddCircleOutlined sx={{ fontSize: 28 }} />
-                      <Typography
-                        variant="caption"
-                        fontWeight={700}
-                        textAlign="center"
-                      >
-                        Add Next Stage
-                      </Typography>
-                    </Box>
-                  );
-                } else {
-                  node = (
-                    <Box
-                      sx={{
-                        border: "2px solid #c8e6c9",
-                        borderRadius: 3,
-                        p: 2,
-                        minWidth: 140,
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        gap: 1,
-                        bgcolor:
-                          lastStatus === "completed" ? "#f1f8e9" : "#ffebee",
-                      }}
-                    >
-                      {lastStatus === "completed" ? (
-                        <CheckCircleOutlined
-                          sx={{ color: "#2e7d32", fontSize: 28 }}
-                        />
-                      ) : (
-                        <CancelOutlined
-                          sx={{ color: "#b71c1c", fontSize: 28 }}
-                        />
-                      )}
-                      <Typography
-                        variant="caption"
-                        fontWeight={700}
-                        color={
-                          lastStatus === "completed" ? "#2e7d32" : "#b71c1c"
-                        }
-                      >
-                        {lastStatus === "completed" ? "Completed" : "Rejected"}
-                      </Typography>
-                    </Box>
-                  );
-                }
-
-                return (
-                  <Box
-                    key={colIndex}
-                    sx={{ display: "flex", alignItems: "center", gap: 1 }}
-                  >
-                    {node}
-                    {/* Arrow between boxes in same row */}
-                    {!isLast && (
-                      <ArrowForwardOutlined
-                        sx={{
-                          color: "#c8e6c9",
-                          fontSize: 28,
-                          flexShrink: 0,
-                          transform: isReversed ? "scaleX(-1)" : "none",
-                        }}
-                      />
-                    )}
-                  </Box>
-                );
-              })}
-            </Box>
-
-            {/* Down arrow between rows — aligned to end of row direction */}
-            {rowIndex < rows.length - 1 && (
+          if (itemType === "track") {
+            const track = tracks[index];
+            node = <TrackBox track={track} index={index} />;
+          } else if (itemType === "add") {
+            node = (
               <Box
+                onClick={onAddOpen}
                 sx={{
+                  border: "2px dashed #c8e6c9",
+                  borderRadius: 3,
+                  p: 2,
+                  width: "100%",
+                  minWidth: 200,
+                  maxWidth: 240,
                   display: "flex",
-                  justifyContent: isReversed ? "flex-start" : "flex-end",
-                  pr: isReversed ? 0 : 1,
-                  pl: isReversed ? 1 : 0,
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 1,
+                  cursor: "pointer",
+                  color: "#2e7d32",
+                  bgcolor: "white",
+                  transition: "all 0.2s",
+                  "&:hover": {
+                    bgcolor: "#e8f5e9",
+                    borderColor: "#2e7d32",
+                  },
                 }}
               >
+                <AddCircleOutlined sx={{ fontSize: 28 }} />
+                <Typography
+                  variant="caption"
+                  fontWeight={700}
+                  textAlign="center"
+                >
+                  Add Next Stage
+                </Typography>
+              </Box>
+            );
+          } else {
+            node = (
+              <Box
+                sx={{
+                  border: "2px solid #c8e6c9",
+                  borderRadius: 3,
+                  p: 2,
+                  width: "100%",
+                  minWidth: 200,
+                  maxWidth: 240,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 1,
+                  bgcolor:
+                    lastStatus === "completed" ? "#f1f8e9" : "#ffebee",
+                }}
+              >
+                {lastStatus === "completed" ? (
+                  <CheckCircleOutlined
+                    sx={{ color: "#2e7d32", fontSize: 28 }}
+                  />
+                ) : (
+                  <CancelOutlined
+                    sx={{ color: "#b71c1c", fontSize: 28 }}
+                  />
+                )}
+                <Typography
+                  variant="caption"
+                  fontWeight={700}
+                  color={
+                    lastStatus === "completed" ? "#2e7d32" : "#b71c1c"
+                  }
+                >
+                  {lastStatus === "completed" ? "Completed" : "Rejected"}
+                </Typography>
+              </Box>
+            );
+          }
+
+          return (
+            <Box
+              key={index}
+              sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1.5, width: "100%" }}
+            >
+              {node}
+              {!isLast && (
                 <ArrowForwardOutlined
                   sx={{
                     color: "#c8e6c9",
@@ -729,7 +693,133 @@ function SnakeTimeline({
                     transform: "rotate(90deg)",
                   }}
                 />
-              </Box>
+              )}
+            </Box>
+          );
+        })}
+      </Box>
+    );
+  }
+
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        gap: 2,
+        overflowX: "auto",
+        py: 3,
+        px: 2,
+        width: "100%",
+        scrollbarWidth: "thin",
+        "&::-webkit-scrollbar": {
+          height: 6,
+        },
+        "&::-webkit-scrollbar-track": {
+          backgroundColor: "#f1f1f1",
+          borderRadius: 3,
+        },
+        "&::-webkit-scrollbar-thumb": {
+          backgroundColor: "#c8e6c9",
+          borderRadius: 3,
+          "&:hover": {
+            backgroundColor: "#a5d6a7",
+          },
+        },
+      }}
+    >
+      {allItems.map((itemType, index) => {
+        const isLast = index === allItems.length - 1;
+        let node: React.ReactNode = null;
+
+        if (itemType === "track") {
+          const track = tracks[index];
+          node = <TrackBox track={track} index={index} />;
+        } else if (itemType === "add") {
+          node = (
+            <Box
+              onClick={onAddOpen}
+              sx={{
+                border: "2px dashed #c8e6c9",
+                borderRadius: 3,
+                p: 2,
+                minWidth: 180,
+                maxWidth: 220,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 1,
+                cursor: "pointer",
+                color: "#2e7d32",
+                bgcolor: "white",
+                transition: "all 0.2s",
+                "&:hover": {
+                  bgcolor: "#e8f5e9",
+                  borderColor: "#2e7d32",
+                },
+              }}
+            >
+              <AddCircleOutlined sx={{ fontSize: 28 }} />
+              <Typography
+                variant="caption"
+                fontWeight={700}
+                textAlign="center"
+              >
+                Add Next Stage
+              </Typography>
+            </Box>
+          );
+        } else {
+          node = (
+            <Box
+              sx={{
+                border: "2px solid #c8e6c9",
+                borderRadius: 3,
+                p: 2,
+                minWidth: 180,
+                maxWidth: 220,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 1,
+                bgcolor:
+                  lastStatus === "completed" ? "#f1f8e9" : "#ffebee",
+              }}
+            >
+              {lastStatus === "completed" ? (
+                <CheckCircleOutlined
+                  sx={{ color: "#2e7d32", fontSize: 28 }}
+                />
+              ) : (
+                <CancelOutlined
+                  sx={{ color: "#b71c1c", fontSize: 28 }}
+                />
+              )}
+              <Typography
+                variant="caption"
+                fontWeight={700}
+                color={
+                  lastStatus === "completed" ? "#2e7d32" : "#b71c1c"
+                }
+              >
+                {lastStatus === "completed" ? "Completed" : "Rejected"}
+              </Typography>
+            </Box>
+          );
+        }
+
+        return (
+          <Box key={index} sx={{ display: "flex", alignItems: "center", gap: 2, flexShrink: 0 }}>
+            {node}
+            {!isLast && (
+              <ArrowForwardOutlined
+                sx={{
+                  color: "#c8e6c9",
+                  fontSize: 28,
+                  flexShrink: 0,
+                }}
+              />
             )}
           </Box>
         );
@@ -749,6 +839,7 @@ function RequestDetailPanel({
   const [tracks, setTracks] = useState<StatusTrack[] | null>(null);
   const [loadingTrack, setLoadingTrack] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
+  const [summaryOpen, setSummaryOpen] = useState(false);
 
   async function loadTracks() {
     setLoadingTrack(true);
@@ -868,12 +959,56 @@ function RequestDetailPanel({
           </Typography>
         </Box>
       ) : (
-        <SnakeTimeline
-          tracks={tracks ?? []}
-          isFinal={isFinal}
-          lastStatus={lastStatus}
-          onAddOpen={() => setAddOpen(true)}
-        />
+        <Box>
+          <SnakeTimeline
+            tracks={tracks ?? []}
+            isFinal={isFinal}
+            lastStatus={lastStatus}
+            onAddOpen={() => setAddOpen(true)}
+          />
+          {lastStatus === "completed" && (
+            <Box
+              sx={{
+                mt: 3,
+                p: 2.5,
+                borderRadius: 3,
+                border: "1px solid #c8e6c9",
+                bgcolor: "#f1f8e9",
+                display: "flex",
+                flexDirection: { xs: "column", sm: "row" },
+                justifyContent: "space-between",
+                alignItems: { xs: "stretch", sm: "center" },
+                gap: 2,
+              }}
+            >
+              <Box>
+                <Typography variant="subtitle2" fontWeight={700} color="#1b5e20">
+                  Post-Training Survey & AI Summary
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
+                  Feedback analysis, satisfaction charts, and AI key learnings are ready for review.
+                </Typography>
+              </Box>
+              <Button
+                variant="contained"
+                size="small"
+                onClick={() => setSummaryOpen(true)}
+                startIcon={<AssessmentOutlined sx={{ fontSize: 16 }} />}
+                sx={{
+                  bgcolor: "#2e7d32",
+                  "&:hover": { bgcolor: "#1b5e20" },
+                  textTransform: "none",
+                  fontWeight: 700,
+                  borderRadius: 2,
+                  px: 2.5,
+                  alignSelf: { xs: "stretch", sm: "auto" },
+                }}
+              >
+                View Summary Report
+              </Button>
+            </Box>
+          )}
+        </Box>
       )}
 
       <AddTrackDialog
@@ -883,6 +1018,28 @@ function RequestDetailPanel({
         onClose={() => setAddOpen(false)}
         onAdded={loadTracks}
       />
+
+      <Dialog
+        open={summaryOpen}
+        onClose={() => setSummaryOpen(false)}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 3 } }}
+      >
+        <DialogTitle sx={{ m: 0, p: 2, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <Typography variant="h6" fontWeight={700} color="#1b5e20">
+            Post-Training Survey & AI Summary
+          </Typography>
+          <IconButton onClick={() => setSummaryOpen(false)} size="small">
+            <CloseOutlined />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers sx={{ p: 0 }}>
+          <Box sx={{ px: 3, pb: 3 }}>
+            <SurveySummaryPanel requestId={request.id} />
+          </Box>
+        </DialogContent>
+      </Dialog>
     </Box>
   );
 }

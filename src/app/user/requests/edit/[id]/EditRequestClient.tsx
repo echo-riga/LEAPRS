@@ -2,6 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import dayjs from "dayjs";
 import {
   Box,
   Typography,
@@ -182,12 +186,12 @@ export function EditRequestClient({ entry }: { entry: EditRequestDetail }) {
   const requiredKeys = activeReqs.filter((r) => r.required).map((r) => r.key);
   const missingRequired = requiredKeys.filter((k) => !isSlotFilled(getSlot(k)));
 
-  const budgetAllocation = entry.budget_allocation ?? null;
+  const remainingBudget = entry.remaining_budget ?? entry.budget_allocation ?? null;
   const budgetWantedNum = parseFloat(budgetWanted);
   const budgetExceeded =
-    budgetAllocation !== null && !isNaN(budgetWantedNum) && budgetWantedNum >= budgetAllocation;
+    remainingBudget !== null && !isNaN(budgetWantedNum) && budgetWantedNum > remainingBudget;
   const budgetValid =
-    budgetAllocation === null ||
+    remainingBudget === null ||
     (budgetWanted !== "" && !isNaN(budgetWantedNum) && !budgetExceeded);
 
   const allRequiredOk = missingRequired.length === 0 && budgetValid && budgetWanted !== "";
@@ -452,20 +456,40 @@ export function EditRequestClient({ entry }: { entry: EditRequestDetail }) {
             {/* Schedule */}
             <SectionLabel label="TRAINING SCHEDULE" />
             <Divider sx={{ mb: 2, borderColor: "#e8f5e9" }} />
-            <Grid container spacing={3} sx={{ mb: 3 }}>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <TextField label="Training Start Date" type="date" variant="standard" fullWidth
-                  value={trainingStart} onChange={(e) => setTrainingStart(e.target.value)}
-                  slotProps={{ inputLabel: { shrink: true } }}
-                />
+            <LocalizationProvider dateAdapter={AdapterDayjs}>
+              <Grid container spacing={3} sx={{ mb: 3 }}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <DatePicker
+                    label="Training Start Date"
+                    value={trainingStart ? dayjs(trainingStart) : null}
+                    onChange={(newValue) =>
+                      setTrainingStart(newValue && newValue.isValid() ? newValue.format("YYYY-MM-DD") : "")
+                    }
+                    slotProps={{
+                      textField: {
+                        variant: "standard",
+                        fullWidth: true,
+                      },
+                    }}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <DatePicker
+                    label="Training End Date"
+                    value={trainingEnd ? dayjs(trainingEnd) : null}
+                    onChange={(newValue) =>
+                      setTrainingEnd(newValue && newValue.isValid() ? newValue.format("YYYY-MM-DD") : "")
+                    }
+                    slotProps={{
+                      textField: {
+                        variant: "standard",
+                        fullWidth: true,
+                      },
+                    }}
+                  />
+                </Grid>
               </Grid>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <TextField label="Training End Date" type="date" variant="standard" fullWidth
-                  value={trainingEnd} onChange={(e) => setTrainingEnd(e.target.value)}
-                  slotProps={{ inputLabel: { shrink: true } }}
-                />
-              </Grid>
-            </Grid>
+            </LocalizationProvider>
 
             {/* Remarks */}
             <SectionLabel label="REMARKS" />
@@ -480,14 +504,16 @@ export function EditRequestClient({ entry }: { entry: EditRequestDetail }) {
             {/* Budget */}
             <SectionLabel label="BUDGET REQUESTED *" />
             <Divider sx={{ mb: 2, borderColor: "#e8f5e9" }} />
-            {budgetAllocation !== null && (
+            {remainingBudget !== null && (
               <Box sx={{
                 mb: 2, p: 1.5, bgcolor: "#f1f8e9", borderRadius: 2,
                 border: "1px solid #c8e6c9", display: "flex", justifyContent: "space-between", alignItems: "center",
               }}>
-                <Typography variant="body2" color="text.secondary">Allocated Budget (PPMP)</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {entry.remaining_budget !== null ? "Remaining Budget (PPMP)" : "Allocated Budget (PPMP)"}
+                </Typography>
                 <Typography variant="body2" fontWeight={700} color="#2e7d32">
-                  ₱{Number(budgetAllocation).toLocaleString("en-PH", { minimumFractionDigits: 2 })}
+                  ₱{Number(remainingBudget).toLocaleString("en-PH", { minimumFractionDigits: 2 })}
                 </Typography>
               </Box>
             )}
@@ -497,9 +523,9 @@ export function EditRequestClient({ entry }: { entry: EditRequestDetail }) {
               error={budgetExceeded}
               helperText={
                 budgetExceeded
-                  ? `Must be less than the allocated budget of ₱${Number(budgetAllocation).toLocaleString("en-PH", { minimumFractionDigits: 2 })}`
-                  : budgetAllocation !== null && budgetValid && budgetWanted !== ""
-                  ? "✓ Within allocated budget"
+                  ? `Must not exceed the remaining budget of ₱${Number(remainingBudget).toLocaleString("en-PH", { minimumFractionDigits: 2 })}`
+                  : remainingBudget !== null && budgetValid && budgetWanted !== ""
+                  ? "✓ Within remaining budget"
                   : "Required — enter the budget amount for this training request"
               }
               slotProps={{

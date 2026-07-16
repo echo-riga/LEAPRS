@@ -26,14 +26,17 @@ import {
   Dialog,
   DialogContent,
   DialogTitle,
+  DialogActions,
   IconButton,
   Alert,
   List,
   ListItem,
   ListItemIcon,
   ListItemText,
-   ToggleButtonGroup,
+  ToggleButtonGroup,
   ToggleButton,
+  useTheme,
+  useMediaQuery,
 } from "@mui/material";
 import {
   AddOutlined,
@@ -53,10 +56,17 @@ import {
   UploadFileOutlined,
   AttachFileOutlined,
   DeleteOutlined,
+  AddCircleOutlined,
+  AssessmentOutlined,
 } from "@mui/icons-material";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Fragment } from "react";
 import { EditOutlined } from "@mui/icons-material"; // add to existing icon imports
-import { fetchMyRequestTrack, submitPostCompletionDocs, updateTrainingRequest } from "./action";
+import { fetchMyRequestTrack, submitPostCompletionDocs, updateTrainingRequest, addMyStatusTrack, fetchMyBudgetPreview } from "./action";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import dayjs from "dayjs";
+import SurveySummaryPanel from "../components/SurveySummaryPanel";
 // ── types ─────────────────────────────────────────────────────────────────────
 
 export type PpmpSummary = {
@@ -153,6 +163,24 @@ const TRACK_STATUS_META: Record<
   },
   completed: { label: "Completed", color: "#1b5e20", bg: "#f1f8e9" },
 };
+
+const STATUS_OPTIONS = [
+  "submitted",
+  "waiting_approval",
+  "approved",
+  "rejected",
+  "training_ongoing",
+  "pending_completion_docs",
+  "pending_completion_approval",
+  "completed",
+];
+
+const OFFICE_OPTIONS = [
+  "Finance",
+  "Academic Affairs",
+  "Office of the President",
+];
+
 
 type PostCompletionDoc = {
   key: string;
@@ -806,22 +834,40 @@ setTrainingEnd(
               TRAINING SCHEDULE
             </Typography>
             <Divider sx={{ mb: 2, borderColor: "#e8f5e9" }} />
-            <Grid container spacing={3} sx={{ mb: 3 }}>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <TextField
-                  label="Training Start Date" type="date" variant="standard" fullWidth
-                  value={trainingStart} onChange={(e) => setTrainingStart(e.target.value)}
-                  slotProps={{ inputLabel: { shrink: true } }}
-                />
+            <LocalizationProvider dateAdapter={AdapterDayjs}>
+              <Grid container spacing={3} sx={{ mb: 3 }}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <DatePicker
+                    label="Training Start Date"
+                    value={trainingStart ? dayjs(trainingStart) : null}
+                    onChange={(newValue) =>
+                      setTrainingStart(newValue && newValue.isValid() ? newValue.format("YYYY-MM-DD") : "")
+                    }
+                    slotProps={{
+                      textField: {
+                        variant: "standard",
+                        fullWidth: true,
+                      },
+                    }}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <DatePicker
+                    label="Training End Date"
+                    value={trainingEnd ? dayjs(trainingEnd) : null}
+                    onChange={(newValue) =>
+                      setTrainingEnd(newValue && newValue.isValid() ? newValue.format("YYYY-MM-DD") : "")
+                    }
+                    slotProps={{
+                      textField: {
+                        variant: "standard",
+                        fullWidth: true,
+                      },
+                    }}
+                  />
+                </Grid>
               </Grid>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <TextField
-                  label="Training End Date" type="date" variant="standard" fullWidth
-                  value={trainingEnd} onChange={(e) => setTrainingEnd(e.target.value)}
-                  slotProps={{ inputLabel: { shrink: true } }}
-                />
-              </Grid>
-            </Grid>
+            </LocalizationProvider>
 
             <Typography variant="caption" sx={{ color: "#2e7d32", fontWeight: 700, letterSpacing: 1.5, display: "block", mb: 0.5 }}>
               REMARKS
@@ -1459,6 +1505,591 @@ const [files, setFiles] = useState<{ id: string; name: string; mimeType: string 
     </>
   );
 }
+
+const ITEMS_PER_ROW = 3;
+
+function SnakeTimeline({
+  tracks,
+  isFinal,
+  lastStatus,
+  onAddOpen,
+}: {
+  tracks: TrackEntry[];
+  isFinal: boolean;
+  lastStatus: string | undefined;
+  onAddOpen: () => void;
+}) {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+
+  // Build full list including add/final box
+  const allItems: ("track" | "add" | "final")[] = [
+    ...tracks.map(() => "track" as const),
+    ...(!isFinal ? (["add"] as const) : []),
+    ...(isFinal ? (["final"] as const) : []),
+  ];
+
+  const renderNode = (itemType: "track" | "add" | "final", index: number) => {
+    if (itemType === "track") {
+      const track = tracks[index];
+      return <TrackBox track={track} />;
+    } else if (itemType === "add") {
+      return (
+        <Box
+          onClick={onAddOpen}
+          sx={{
+            border: "2px dashed #c8e6c9",
+            borderRadius: 3,
+            p: 2,
+            minWidth: 180,
+            maxWidth: 220,
+            width: "100%",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 1,
+            cursor: "pointer",
+            color: "#2e7d32",
+            bgcolor: "white",
+            transition: "all 0.2s",
+            "&:hover": {
+              bgcolor: "#e8f5e9",
+              borderColor: "#2e7d32",
+            },
+          }}
+        >
+          <AddCircleOutlined sx={{ fontSize: 28 }} />
+          <Typography variant="caption" fontWeight={700} textAlign="center">
+            Add Next Stage
+          </Typography>
+        </Box>
+      );
+    } else {
+      return (
+        <Box
+          sx={{
+            border: "2px solid #c8e6c9",
+            borderRadius: 3,
+            p: 2,
+            minWidth: 180,
+            maxWidth: 220,
+            width: "100%",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 1,
+            bgcolor: lastStatus === "completed" ? "#f1f8e9" : "#ffebee",
+          }}
+        >
+          {lastStatus === "completed" ? (
+            <CheckCircleOutlined sx={{ color: "#2e7d32", fontSize: 28 }} />
+          ) : (
+            <CancelOutlined sx={{ color: "#b71c1c", fontSize: 28 }} />
+          )}
+          <Typography
+            variant="caption"
+            fontWeight={700}
+            color={lastStatus === "completed" ? "#2e7d32" : "#b71c1c"}
+          >
+            {lastStatus === "completed" ? "Completed" : "Rejected"}
+          </Typography>
+        </Box>
+      );
+    }
+  };
+
+  if (isMobile) {
+    return (
+      <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1.5, py: 1 }}>
+        {allItems.map((itemType, index) => {
+          const isLast = index === allItems.length - 1;
+          return (
+            <Box
+              key={index}
+              sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1.5, width: "100%" }}
+            >
+              {renderNode(itemType, index)}
+              {!isLast && (
+                <ArrowForwardOutlined
+                  sx={{
+                    color: "#c8e6c9",
+                    fontSize: 28,
+                    transform: "rotate(90deg)",
+                  }}
+                />
+              )}
+            </Box>
+          );
+        })}
+      </Box>
+    );
+  }
+
+  const rows: (typeof allItems)[] = [];
+  for (let i = 0; i < allItems.length; i += ITEMS_PER_ROW) {
+    rows.push(allItems.slice(i, i + ITEMS_PER_ROW));
+  }
+
+  return (
+    <Box
+      sx={{
+        display: "grid",
+        gridTemplateColumns: "200px 32px 200px 32px 200px",
+        gap: "16px 0px",
+        justifyContent: "center",
+        alignItems: "center",
+        width: "100%",
+        py: 2,
+      }}
+    >
+      {rows.map((row, rowIndex) => {
+        const isReversed = rowIndex % 2 === 1;
+        const elements: React.ReactNode[] = Array(5).fill(null);
+
+        if (!isReversed) {
+          if (row[0]) {
+            elements[0] = renderNode(row[0], rowIndex * 3 + 0);
+          }
+          if (row[1]) {
+            elements[1] = (
+              <Box sx={{ display: "flex", justifyContent: "center" }}>
+                <ArrowForwardOutlined sx={{ color: "#c8e6c9", fontSize: 24 }} />
+              </Box>
+            );
+            elements[2] = renderNode(row[1], rowIndex * 3 + 1);
+          }
+          if (row[2]) {
+            elements[3] = (
+              <Box sx={{ display: "flex", justifyContent: "center" }}>
+                <ArrowForwardOutlined sx={{ color: "#c8e6c9", fontSize: 24 }} />
+              </Box>
+            );
+            elements[4] = renderNode(row[2], rowIndex * 3 + 2);
+          }
+        } else {
+          if (row[0]) {
+            elements[4] = renderNode(row[0], rowIndex * 3 + 0);
+          }
+          if (row[1]) {
+            elements[3] = (
+              <Box sx={{ display: "flex", justifyContent: "center" }}>
+                <ArrowForwardOutlined sx={{ color: "#c8e6c9", fontSize: 24, transform: "scaleX(-1)" }} />
+              </Box>
+            );
+            elements[2] = renderNode(row[1], rowIndex * 3 + 1);
+          }
+          if (row[2]) {
+            elements[1] = (
+              <Box sx={{ display: "flex", justifyContent: "center" }}>
+                <ArrowForwardOutlined sx={{ color: "#c8e6c9", fontSize: 24, transform: "scaleX(-1)" }} />
+              </Box>
+            );
+            elements[0] = renderNode(row[2], rowIndex * 3 + 2);
+          }
+        }
+
+        const rowNodes = elements.map((node, elIndex) => (
+          <Box key={`row-${rowIndex}-col-${elIndex}`} sx={{ display: "flex", justifyContent: "center", alignItems: "center", width: "100%" }}>
+            {node}
+          </Box>
+        ));
+
+        // Down arrow row
+        let downArrowRow: React.ReactNode = null;
+        if (rowIndex < rows.length - 1) {
+          const downArrowElements: React.ReactNode[] = Array(5).fill(null);
+          const arrowIndex = isReversed ? 0 : 4;
+          downArrowElements[arrowIndex] = (
+            <ArrowForwardOutlined sx={{ color: "#c8e6c9", fontSize: 24, transform: "rotate(90deg)" }} />
+          );
+
+          downArrowRow = downArrowElements.map((node, elIndex) => (
+            <Box key={`down-${rowIndex}-col-${elIndex}`} sx={{ display: "flex", justifyContent: "center", alignItems: "center", width: "100%" }}>
+              {node}
+            </Box>
+          ));
+        }
+
+        return (
+          <Fragment key={rowIndex}>
+            {rowNodes}
+            {downArrowRow}
+          </Fragment>
+        );
+      })}
+    </Box>
+  );
+}
+
+function AddTrackDialog({
+  open,
+  requestId,
+  parentFolderUrl,
+  onClose,
+  onAdded,
+}: {
+  open: boolean;
+  requestId: string;
+  parentFolderUrl: string | null;
+  onClose: () => void;
+  onAdded: () => void;
+}) {
+  const [office, setOffice] = useState("");
+  const [status, setStatus] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [remarks, setRemarks] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [uploadMsg, setUploadMsg] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [budgetPreview, setBudgetPreview] = useState<{
+    budget_wanted: number | null;
+    budget_allocation: number | null;
+    remaining_budget: number | null;
+    ppa: string;
+  } | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  function reset() {
+    setOffice("");
+    setStatus("");
+    setFile(null);
+    setRemarks("");
+    setError(null);
+    setUploadMsg("");
+  }
+
+  function extractFolderId(url: string) {
+    const match = url.match(/folders\/([a-zA-Z0-9_-]+)/);
+    return match?.[1] ?? null;
+  }
+
+  async function handleAdd() {
+    if (!status) {
+      setError("Status is required.");
+      return;
+    }
+
+    if (status === "approved" && office === "Finance") {
+      setLoading(true);
+      try {
+        const preview = await fetchMyBudgetPreview(requestId);
+        setBudgetPreview(preview);
+        console.log("PREVIEW:", preview);
+
+        const remaining = parseFloat(String(preview?.remaining_budget ?? 0));
+        const wanted = parseFloat(String(preview?.budget_wanted ?? 0));
+
+        if (wanted > 0 && remaining <= 0) {
+          setError("No remaining budget for this PPMP. Approval is not allowed.");
+          setLoading(false);
+          return;
+        }
+        if (wanted > remaining) {
+          setError(
+            `Insufficient budget. Requested ₱${wanted.toLocaleString("en-PH", { minimumFractionDigits: 2 })} but only ₱${remaining.toLocaleString("en-PH", { minimumFractionDigits: 2 })} remaining.`
+          );
+          setLoading(false);
+          return;
+        }
+        setLoading(false);
+        setConfirmOpen(true);
+        return;
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : "Something went wrong");
+        setLoading(false);
+        return;
+      }
+    }
+
+    await doAdd();
+  }
+
+  async function doAdd() {
+    setLoading(true);
+    setError(null);
+    try {
+      let fileUrl: string | null = null;
+
+      if (file && parentFolderUrl) {
+        const parentFolderId = extractFolderId(parentFolderUrl);
+        if (!parentFolderId) throw new Error("Could not determine parent folder.");
+
+        const subfolderName = office || TRACK_STATUS_META[status]?.label || status;
+        setUploadMsg("Creating subfolder…");
+
+        const initRes = await fetch("/api/drive/init", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ parentFolderId, subfolderName }),
+        });
+        if (!initRes.ok) throw new Error("Failed to create subfolder");
+        const { folderId, accessToken } = await initRes.json();
+
+        setUploadMsg("Uploading file…");
+        const ext = file.name.split(".").pop() ?? "bin";
+        const name = `${subfolderName}.${ext}`;
+
+        const metadata = JSON.stringify({ name, parents: [folderId] });
+        const form = new FormData();
+        form.append("metadata", new Blob([metadata], { type: "application/json" }));
+        form.append("file", file);
+
+        const uploadRes = await fetch(
+          "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",
+          {
+            method: "POST",
+            headers: { Authorization: `Bearer ${accessToken}` },
+            body: form,
+          },
+        );
+        if (!uploadRes.ok) throw new Error("Failed to upload file");
+
+        fileUrl = `https://drive.google.com/drive/folders/${folderId}`;
+      }
+
+      setUploadMsg("Saving…");
+      await addMyStatusTrack({
+        requestId,
+        office: office || null,
+        status,
+        fileUrl,
+        remarks: remarks || null,
+      });
+
+      reset();
+      onAdded();
+      onClose();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Something went wrong");
+    }
+    setLoading(false);
+    setUploadMsg("");
+  }
+
+  return (
+    <>
+      <Dialog
+        open={open}
+        onClose={onClose}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 3 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 700, color: "#1b5e20", pb: 1 }}>
+          Add Next Stage
+        </DialogTitle>
+        <DialogContent
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 2.5,
+            pt: "12px !important",
+          }}
+        >
+          {error && <Alert severity="error">{error}</Alert>}
+
+          <FormControl variant="standard" fullWidth>
+            <InputLabel shrink>Office</InputLabel>
+            <Select
+              value={office}
+              onChange={(e) => setOffice(e.target.value)}
+              displayEmpty
+            >
+              <MenuItem value="">No specific office</MenuItem>
+              {OFFICE_OPTIONS.map((o) => (
+                <MenuItem key={o} value={o}>
+                  {o}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <FormControl variant="standard" fullWidth required>
+            <InputLabel shrink>Status *</InputLabel>
+            <Select value={status} onChange={(e) => setStatus(e.target.value)}>
+              <MenuItem value="" disabled>
+                Select status
+              </MenuItem>
+              {STATUS_OPTIONS.map((s) => (
+                <MenuItem key={s} value={s}>
+                  {TRACK_STATUS_META[s]?.label ?? s}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          {/* File upload */}
+          <Box>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              fontWeight={600}
+              sx={{ display: "block", mb: 1 }}
+            >
+              Attach File (optional)
+            </Typography>
+            <Button
+              component="label"
+              variant={file ? "outlined" : "contained"}
+              size="small"
+              sx={{
+                textTransform: "none",
+                borderRadius: 2,
+                bgcolor: file ? undefined : "#2e7d32",
+                borderColor: file ? "#c8e6c9" : undefined,
+                color: file ? "#2e7d32" : "white",
+                "&:hover": { bgcolor: file ? "#f1f8e9" : "#1b5e20" },
+              }}
+            >
+              {file ? `✓ ${file.name}` : "Upload File"}
+              <input
+                type="file"
+                hidden
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              />
+            </Button>
+            {file && (
+              <Button
+                size="small"
+                onClick={() => setFile(null)}
+                sx={{ textTransform: "none", color: "text.disabled", ml: 1 }}
+              >
+                Remove
+              </Button>
+            )}
+            {!parentFolderUrl && (
+              <Typography
+                variant="caption"
+                color="text.disabled"
+                sx={{ display: "block", mt: 0.5 }}
+              >
+                No request folder found — file upload unavailable.
+              </Typography>
+            )}
+          </Box>
+
+          <TextField
+            label="Remarks"
+            variant="standard"
+            fullWidth
+            multiline
+            minRows={2}
+            value={remarks}
+            onChange={(e) => setRemarks(e.target.value)}
+            placeholder="Optional notes"
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
+          <Button
+            onClick={() => {
+              reset();
+              onClose();
+            }}
+            sx={{ textTransform: "none" }}
+            disabled={loading}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleAdd}
+            disabled={loading || !status}
+            sx={{
+              textTransform: "none",
+              bgcolor: "#2e7d32",
+              "&:hover": { bgcolor: "#1b5e20" },
+              minWidth: 110,
+            }}
+          >
+            {loading ? (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <CircularProgress size={14} color="inherit" />
+                <Typography variant="caption" color="inherit">
+                  {uploadMsg || "Saving…"}
+                </Typography>
+              </Box>
+            ) : (
+              "Add Stage"
+            )}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 3 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 700, color: "#1b5e20" }}>
+          Confirm Approval & Budget Deduction
+        </DialogTitle>
+        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, pt: "12px !important" }}>
+          <Alert severity="info" icon={false} sx={{ bgcolor: "#e8f5e9", color: "#1b5e20" }}>
+            Approving this request will deduct the requested budget from the PPMP allocation.
+          </Alert>
+          <Box sx={{ p: 2, bgcolor: "#f9f9f9", borderRadius: 2, border: "1px solid #e0e0e0" }}>
+            <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+              <Typography variant="body2" color="text.secondary">Initial Allocation</Typography>
+              <Typography variant="body2" fontWeight={600} color="#1b5e20">
+                ₱{Number(budgetPreview?.budget_allocation ?? 0).toLocaleString("en-PH", { minimumFractionDigits: 2 })}
+              </Typography>
+            </Box>
+            <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+              <Typography variant="body2" color="text.secondary">Remaining Budget</Typography>
+              <Typography variant="body2" fontWeight={600} color="#e65100">
+                ₱{Number(budgetPreview?.remaining_budget ?? 0).toLocaleString("en-PH", { minimumFractionDigits: 2 })}
+              </Typography>
+            </Box>
+            <Divider sx={{ my: 1.5 }} />
+            <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+              <Typography variant="body2" color="text.secondary">Budget Requested</Typography>
+              <Typography variant="body2" fontWeight={600} color="#e65100">
+                − ₱{Number(budgetPreview?.budget_wanted ?? 0).toLocaleString("en-PH", { minimumFractionDigits: 2 })}
+              </Typography>
+            </Box>
+            <Divider sx={{ my: 1.5 }} />
+            <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+              <Typography variant="body2" color="text.secondary">After Approval</Typography>
+              <Typography variant="body2" fontWeight={700} color="#1b5e20">
+                ₱{(
+                  Number(budgetPreview?.remaining_budget ?? 0) -
+                  Number(budgetPreview?.budget_wanted ?? 0)
+                ).toLocaleString("en-PH", { minimumFractionDigits: 2 })}
+              </Typography>
+            </Box>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
+          <Button
+            onClick={() => setConfirmOpen(false)}
+            sx={{ textTransform: "none" }}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={async () => {
+              setConfirmOpen(false);
+              await doAdd();
+            }}
+            sx={{
+              textTransform: "none",
+              bgcolor: "#2e7d32",
+              "&:hover": { bgcolor: "#1b5e20" },
+            }}
+          >
+            Confirm Approval
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </>
+  );
+}
+
 // ── request timeline dialog ───────────────────────────────────────────────────
 
 function RequestTimelineDialog({
@@ -1472,13 +2103,19 @@ function RequestTimelineDialog({
 }) {
   const [tracks, setTracks] = useState<TrackEntry[]>([]);
   const [loading, setLoading] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const [summaryOpen, setSummaryOpen] = useState(false);
 
-  useEffect(() => {
+  async function loadTracks() {
     if (!request) return;
     setLoading(true);
     fetchMyRequestTrack(request.id)
       .then(setTracks)
       .finally(() => setLoading(false));
+  }
+
+  useEffect(() => {
+    loadTracks();
   }, [request?.id]);
 
   if (!request) return null;
@@ -1486,192 +2123,215 @@ function RequestTimelineDialog({
   const lastStatus = tracks[tracks.length - 1]?.status;
   const isFinal = lastStatus === "completed" || lastStatus === "rejected";
   const needsDocs = lastStatus === "pending_completion_docs";
+  const parentFolderUrl = tracks[0]?.file_url ?? null;
 
   return (
-    <Dialog
-      open={!!request}
-      onClose={onClose}
-      maxWidth="md"
-      fullWidth
-      PaperProps={{ sx: { borderRadius: 3 } }}
-    >
-      <DialogTitle sx={{ pb: 1 }}>
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-          }}
-        >
-          <Box>
-            <Typography
-              variant="caption"
-              sx={{
-                bgcolor: "#e8f5e9",
-                color: "#2e7d32",
-                px: 1.2,
-                py: 0.4,
-                borderRadius: 1,
-                fontWeight: 700,
-              }}
-            >
-              {request.aip_code}
-            </Typography>
-            <Typography variant="h6" fontWeight={700} sx={{ mt: 0.5 }}>
-              {request.ppa}
-            </Typography>
-            <Box sx={{ display: "flex", gap: 1, mt: 0.5, flexWrap: "wrap" }}>
-              <Chip
-                label={request.type === "external" ? "External" : "In-house"}
-                size="small"
+    <>
+      <Dialog
+        open={!!request}
+        onClose={onClose}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 3 } }}
+      >
+        <DialogTitle sx={{ pb: 1 }}>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "flex-start",
+            }}
+          >
+            <Box>
+              <Typography
+                variant="caption"
                 sx={{
-                  fontSize: 11,
-                  bgcolor: request.type === "external" ? "#e3f2fd" : "#f3e5f5",
-                  color: request.type === "external" ? "#1565c0" : "#6a1b9a",
-                }}
-              />
-              {(() => {
-                const meta = STATUS_META[request.status];
-                return (
-                  <Chip
-                    label={meta?.label ?? request.status}
-                    color={meta?.color ?? "default"}
-                    size="small"
-                    variant="outlined"
-                    sx={{ fontWeight: 600, fontSize: 11 }}
-                  />
-                );
-              })()}
-            </Box>
-          </Box>
-          <IconButton onClick={onClose} size="small">
-            <CloseOutlined />
-          </IconButton>
-        </Box>
-      </DialogTitle>
-
-      <DialogContent sx={{ pt: 1 }}>
-        {needsDocs && (
-          <Alert
-            severity="warning"
-            sx={{ mb: 2, borderRadius: 2 }}
-            action={
-              <Button
-                size="small"
-                variant="contained"
-                onClick={() => onUploadDocs(request)}
-                startIcon={<UploadFileOutlined sx={{ fontSize: 14 }} />}
-                sx={{
-                  textTransform: "none",
-                  bgcolor: "#e65100",
-                  "&:hover": { bgcolor: "#bf360c" },
-                  fontSize: 12,
-                  whiteSpace: "nowrap",
+                  bgcolor: "#e8f5e9",
+                  color: "#2e7d32",
+                  px: 1.2,
+                  py: 0.4,
+                  borderRadius: 1,
+                  fontWeight: 700,
                 }}
               >
-                Upload Now
-              </Button>
-            }
-          >
-            <Typography variant="body2" fontWeight={600}>
-              Action Required
-            </Typography>
-            <Typography variant="caption">
-              Your training has concluded. Please upload post-completion
-              documents to proceed.
-            </Typography>
-          </Alert>
-        )}
-
-        <Typography
-          variant="caption"
-          color="text.disabled"
-          fontWeight={600}
-          sx={{
-            textTransform: "uppercase",
-            letterSpacing: 1,
-            display: "block",
-            mb: 2,
-          }}
-        >
-          Request Timeline
-        </Typography>
-
-        {loading ? (
-          <Box sx={{ display: "flex", alignItems: "center", gap: 2, py: 4 }}>
-            <CircularProgress size={20} sx={{ color: "#2e7d32" }} />
-            <Typography variant="body2" color="text.secondary">
-              Loading timeline…
-            </Typography>
-          </Box>
-        ) : tracks.length === 0 ? (
-          <Typography variant="body2" color="text.secondary">
-            No timeline entries yet.
-          </Typography>
-        ) : (
-          <Box sx={{ overflowX: "auto", pb: 2 }}>
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                gap: 1,
-                minWidth: "max-content",
-              }}
-            >
-              {tracks.map((track, i) => (
-                <Box
-                  key={track.id}
-                  sx={{ display: "flex", alignItems: "center", gap: 1 }}
-                >
-                 <TrackBox key={track.id} track={track} />
-                  {i < tracks.length - 1 && (
-                    <ArrowForwardOutlined
-                      sx={{ color: "#c8e6c9", fontSize: 28, flexShrink: 0 }}
+                {request.aip_code}
+              </Typography>
+              <Typography variant="h6" fontWeight={700} sx={{ mt: 0.5 }}>
+                {request.ppa}
+              </Typography>
+              <Box sx={{ display: "flex", gap: 1, mt: 0.5, flexWrap: "wrap" }}>
+                <Chip
+                  label={request.type === "external" ? "External" : "In-house"}
+                  size="small"
+                  sx={{
+                    fontSize: 11,
+                    bgcolor: request.type === "external" ? "#e3f2fd" : "#f3e5f5",
+                    color: request.type === "external" ? "#1565c0" : "#6a1b9a",
+                  }}
+                />
+                {(() => {
+                  const meta = STATUS_META[request.status];
+                  return (
+                    <Chip
+                      label={meta?.label ?? request.status}
+                      color={meta?.color ?? "default"}
+                      size="small"
+                      variant="outlined"
+                      sx={{ fontWeight: 600, fontSize: 11 }}
                     />
-                  )}
-                </Box>
-              ))}
-              {isFinal && (
-                <>
-                  <ArrowForwardOutlined
-                    sx={{ color: "#c8e6c9", fontSize: 28, flexShrink: 0 }}
-                  />
-                  <Box
-                    sx={{
-                      border: "2px solid #c8e6c9",
-                      borderRadius: 3,
-                      p: 2,
-                      minWidth: 130,
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      gap: 1,
-                      bgcolor:
-                        lastStatus === "completed" ? "#f1f8e9" : "#ffebee",
-                    }}
-                  >
-                    {lastStatus === "completed" ? (
-                      <CheckCircleOutlined
-                        sx={{ color: "#2e7d32", fontSize: 28 }}
-                      />
-                    ) : (
-                      <CancelOutlined sx={{ color: "#b71c1c", fontSize: 28 }} />
-                    )}
-                    <Typography
-                      variant="caption"
-                      fontWeight={700}
-                      color={lastStatus === "completed" ? "#2e7d32" : "#b71c1c"}
-                    >
-                      {lastStatus === "completed" ? "Completed" : "Rejected"}
+                  );
+                })()}
+              </Box>
+            </Box>
+            <IconButton onClick={onClose} size="small">
+              <CloseOutlined />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+
+        <DialogContent sx={{ pt: 1 }}>
+          {needsDocs && (
+            <Alert
+              severity="warning"
+              sx={{ mb: 2, borderRadius: 2 }}
+              action={
+                <Button
+                  size="small"
+                  variant="contained"
+                  onClick={() => onUploadDocs(request)}
+                  startIcon={<UploadFileOutlined sx={{ fontSize: 14 }} />}
+                  sx={{
+                    textTransform: "none",
+                    bgcolor: "#e65100",
+                    "&:hover": { bgcolor: "#bf360c" },
+                    fontSize: 12,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Upload Now
+                </Button>
+              }
+            >
+              <Typography variant="body2" fontWeight={600}>
+                Action Required
+              </Typography>
+              <Typography variant="caption">
+                Your training has concluded. Please upload post-completion
+                documents to proceed.
+              </Typography>
+            </Alert>
+          )}
+
+          <Typography
+            variant="caption"
+            color="text.disabled"
+            fontWeight={600}
+            sx={{
+              textTransform: "uppercase",
+              letterSpacing: 1,
+              display: "block",
+              mb: 2,
+            }}
+          >
+            Request Timeline
+          </Typography>
+
+          {loading ? (
+            <Box sx={{ display: "flex", alignItems: "center", gap: 2, py: 4 }}>
+              <CircularProgress size={20} sx={{ color: "#2e7d32" }} />
+              <Typography variant="body2" color="text.secondary">
+                Loading timeline…
+              </Typography>
+            </Box>
+          ) : tracks.length === 0 ? (
+            <Typography variant="body2" color="text.secondary">
+              No timeline entries yet.
+            </Typography>
+          ) : (
+            <Box sx={{ py: 2 }}>
+              <SnakeTimeline
+                tracks={tracks}
+                isFinal={isFinal}
+                lastStatus={lastStatus}
+                onAddOpen={() => setAddOpen(true)}
+              />
+              {lastStatus === "completed" && (
+                <Box
+                  sx={{
+                    mt: 3,
+                    p: 2.5,
+                    borderRadius: 3,
+                    border: "1px solid #c8e6c9",
+                    bgcolor: "#f1f8e9",
+                    display: "flex",
+                    flexDirection: { xs: "column", sm: "row" },
+                    justifyContent: "space-between",
+                    alignItems: { xs: "stretch", sm: "center" },
+                    gap: 2,
+                  }}
+                >
+                  <Box>
+                    <Typography variant="subtitle2" fontWeight={700} color="#1b5e20">
+                      Post-Training Survey & AI Summary
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
+                      Feedback analysis, satisfaction charts, and AI key learnings are ready for review.
                     </Typography>
                   </Box>
-                </>
+                  <Button
+                    variant="contained"
+                    size="small"
+                    onClick={() => setSummaryOpen(true)}
+                    startIcon={<AssessmentOutlined sx={{ fontSize: 16 }} />}
+                    sx={{
+                      bgcolor: "#2e7d32",
+                      "&:hover": { bgcolor: "#1b5e20" },
+                      textTransform: "none",
+                      fontWeight: 700,
+                      borderRadius: 2,
+                      px: 2.5,
+                      alignSelf: { xs: "stretch", sm: "auto" },
+                    }}
+                  >
+                    View Summary Report
+                  </Button>
+                </Box>
               )}
             </Box>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <AddTrackDialog
+        open={addOpen}
+        requestId={request.id}
+        parentFolderUrl={parentFolderUrl}
+        onClose={() => setAddOpen(false)}
+        onAdded={loadTracks}
+      />
+
+      <Dialog
+        open={summaryOpen}
+        onClose={() => setSummaryOpen(false)}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 3 } }}
+      >
+        <DialogTitle sx={{ m: 0, p: 2, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <Typography variant="h6" fontWeight={700} color="#1b5e20">
+            Post-Training Survey & AI Summary
+          </Typography>
+          <IconButton onClick={() => setSummaryOpen(false)} size="small">
+            <CloseOutlined />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers sx={{ p: 0 }}>
+          <Box sx={{ px: 3, pb: 3 }}>
+            <SurveySummaryPanel requestId={request.id} />
           </Box>
-        )}
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 

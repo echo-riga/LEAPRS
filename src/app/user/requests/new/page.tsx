@@ -18,7 +18,8 @@ export type PpmpDetail = {
   planned_outputs: string | null;
   ppa_owner: string | null;
   target_implementation: string | null;
-  budget_allocation: number | null; // ← add this
+  budget_allocation: number | null;
+  remaining_budget: number | null; // ← add this
 };
 
 export default async function NewRequestPage({
@@ -44,7 +45,8 @@ export default async function NewRequestPage({
       p.planned_outputs,
       p.ppa_owner,
       p.target_implementation,
-      p.budget_allocation          -- ← add this
+      p.budget_allocation,
+      p.remaining_budget           -- ← add remaining_budget
     FROM ppmp p
     LEFT JOIN departments  d  ON d.id  = p.department_id
     LEFT JOIN school_years sy ON sy.id = p.school_year_id

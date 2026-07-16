@@ -26,6 +26,7 @@ export type EditRequestDetail = {
   ppa_owner: string | null;
   target_implementation: string | null;
   budget_allocation: number | null;
+  remaining_budget: number | null; // ← add this
 };
 
 export default async function EditRequestPage({
@@ -57,7 +58,8 @@ export default async function EditRequestPage({
       p.planned_outputs,
       p.ppa_owner,
       p.target_implementation,
-      p.budget_allocation
+      p.budget_allocation,
+      p.remaining_budget -- ← add remaining_budget
     FROM training_requests tr
     JOIN ppmp p ON p.id = tr.ppmp_id
     LEFT JOIN departments  d  ON d.id  = p.department_id

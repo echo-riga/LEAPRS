@@ -1,6 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import dayjs from "dayjs";
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Box, Typography, Button, TextField, Divider, Grid,
@@ -279,18 +283,40 @@ export function AdminRequestDialog({
             {/* Schedule */}
             <SectionLabel label="TRAINING SCHEDULE" />
             <Divider sx={{ mb: 2, borderColor: "#e8f5e9" }} />
-            <Grid container spacing={3} sx={{ mb: 3 }}>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <TextField label="Training Start Date" type="date" variant="standard" fullWidth
-                  value={trainingStart} onChange={(e) => setTrainingStart(e.target.value)}
-                  slotProps={{ inputLabel: { shrink: true } }} />
+            <LocalizationProvider dateAdapter={AdapterDayjs}>
+              <Grid container spacing={3} sx={{ mb: 3 }}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <DatePicker
+                    label="Training Start Date"
+                    value={trainingStart ? dayjs(trainingStart) : null}
+                    onChange={(newValue) =>
+                      setTrainingStart(newValue && newValue.isValid() ? newValue.format("YYYY-MM-DD") : "")
+                    }
+                    slotProps={{
+                      textField: {
+                        variant: "standard",
+                        fullWidth: true,
+                      },
+                    }}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <DatePicker
+                    label="Training End Date"
+                    value={trainingEnd ? dayjs(trainingEnd) : null}
+                    onChange={(newValue) =>
+                      setTrainingEnd(newValue && newValue.isValid() ? newValue.format("YYYY-MM-DD") : "")
+                    }
+                    slotProps={{
+                      textField: {
+                        variant: "standard",
+                        fullWidth: true,
+                      },
+                    }}
+                  />
+                </Grid>
               </Grid>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <TextField label="Training End Date" type="date" variant="standard" fullWidth
-                  value={trainingEnd} onChange={(e) => setTrainingEnd(e.target.value)}
-                  slotProps={{ inputLabel: { shrink: true } }} />
-              </Grid>
-            </Grid>
+            </LocalizationProvider>
 
             {/* Remarks */}
             <SectionLabel label="REMARKS" />
