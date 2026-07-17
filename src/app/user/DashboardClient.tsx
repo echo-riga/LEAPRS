@@ -2378,6 +2378,7 @@ function handleEditSaved() {
   const [uploadDocReq, setUploadDocReq] = useState<TrainingRequest | null>(
     null,
   );
+  const [summaryRequest, setSummaryRequest] = useState<TrainingRequest | null>(null);
 
   const requestedCodes = new Set(myRequests.map((r) => r.aip_code));
   const pendingCount = myRequests.filter((r) =>
@@ -2389,6 +2390,7 @@ function handleEditSaved() {
   const pendingDocsList = myRequests.filter(
     (r) => r.status === "pending_completion_docs",
   );
+  const completedSurveyList = myRequests.filter((r) => r.status === "completed");
 
   const filteredPpmp = ppmpEntries.filter((e) => {
     const matchSearch =
@@ -2426,7 +2428,7 @@ function handleEditSaved() {
   return (
     <Box>
       {/* Greeting */}
-      <Box sx={{ mb: pendingDocsList.length > 0 ? 2 : 4 }}>
+      <Box sx={{ mb: pendingDocsList.length > 0 || completedSurveyList.length > 0 ? 2 : 4 }}>
         <Typography variant="h4" fontWeight={700} color="#1b5e20">
           {greeting}, {user.name.split(" ")[0]}!
         </Typography>
@@ -2475,6 +2477,49 @@ function handleEditSaved() {
               >
                 {req.aip_code} · Your training has concluded — please submit
                 post-completion documents to proceed.
+              </Typography>
+            </Alert>
+          ))}
+        </Box>
+      )}
+
+      {/* ── Notification banners — completed surveys and summary ── */}
+      {completedSurveyList.length > 0 && (
+        <Box sx={{ mb: 3, display: "flex", flexDirection: "column", gap: 1 }}>
+          {completedSurveyList.map((req) => (
+            <Alert
+              key={req.id}
+              severity="success"
+              icon={<AssessmentOutlined />}
+              sx={{ borderRadius: 2, alignItems: "flex-start" }}
+              action={
+                <Button
+                  size="small"
+                  variant="contained"
+                  onClick={() => setSummaryRequest(req)}
+                  startIcon={<AssessmentOutlined sx={{ fontSize: 14 }} />}
+                  sx={{
+                    textTransform: "none",
+                    bgcolor: "#2e7d32",
+                    "&:hover": { bgcolor: "#1b5e20" },
+                    fontSize: 12,
+                    whiteSpace: "nowrap",
+                    mt: 0.5,
+                  }}
+                >
+                  Survey & Summary
+                </Button>
+              }
+            >
+              <Typography variant="body2" fontWeight={700}>
+                Post-Training Survey Available: {req.ppa}
+              </Typography>
+              <Typography
+                variant="caption"
+                display="block"
+                color="text.secondary"
+              >
+                {req.aip_code} · Generate the 2 Google survey forms, sync responses, and create the AI summary analysis.
               </Typography>
             </Alert>
           ))}
@@ -2846,6 +2891,35 @@ function handleEditSaved() {
           setUploadDocReq(req);
         }}
       />
+
+      <Dialog
+        open={!!summaryRequest}
+        onClose={() => setSummaryRequest(null)}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 3 } }}
+      >
+        <DialogTitle sx={{ m: 0, p: 2, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <Box>
+            <Typography variant="h6" fontWeight={700} color="#1b5e20">
+              Post-Training Survey & AI Summary
+            </Typography>
+            {summaryRequest && (
+              <Typography variant="caption" color="text.secondary">
+                {summaryRequest.aip_code} · {summaryRequest.ppa}
+              </Typography>
+            )}
+          </Box>
+          <IconButton onClick={() => setSummaryRequest(null)} size="small">
+            <CloseOutlined />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers sx={{ p: 0 }}>
+          <Box sx={{ px: 3, pb: 3 }}>
+            {summaryRequest && <SurveySummaryPanel requestId={summaryRequest.id} />}
+          </Box>
+        </DialogContent>
+      </Dialog>
 
 <EditRequestDialog
   request={editRequest}
