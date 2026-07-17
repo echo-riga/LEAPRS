@@ -112,8 +112,11 @@ export function AdminRequestDialog({
   const requiredKeys = activeReqs.filter((r) => r.required).map((r) => r.key);
   const uploadedKeys = uploads.map((u) => u.key);
   const missingRequired = requiredKeys.filter((k) => !uploadedKeys.includes(k));
-  const budgetAllocation = entry.budget_allocation ? Number(entry.budget_allocation) : null;
-  const remainingBudget = entry.remaining_budget !== null ? Number(entry.remaining_budget) : budgetAllocation;
+  const allocatedBudget = entry.budget_allocation !== null ? Number(entry.budget_allocation) : null;
+  const remainingBudget = entry.remaining_budget !== null
+    ? Number(entry.remaining_budget)
+    : allocatedBudget;
+  const budgetHistory = entry.budget_history ?? [];
   const budgetWantedNum = parseFloat(budgetWanted);
   const budgetExceeded = remainingBudget !== null && !isNaN(budgetWantedNum) && budgetWantedNum > remainingBudget;
   const budgetValid = remainingBudget === null || (budgetWanted !== "" && !isNaN(budgetWantedNum) && !budgetExceeded);
@@ -281,6 +284,13 @@ export function AdminRequestDialog({
               ))}
             </ToggleButtonGroup>
 
+            {type === "external" && (
+              <Alert severity="info" sx={{ mb: 3 }}>
+                External requests should be submitted only when you are already aware of the requirements.
+                Please set the training start date at least 1 month in advance.
+              </Alert>
+            )}
+
             {/* Schedule */}
             <SectionLabel label="TRAINING SCHEDULE" />
             <Divider sx={{ mb: 2, borderColor: "#e8f5e9" }} />
@@ -331,13 +341,19 @@ export function AdminRequestDialog({
             <Divider sx={{ mb: 2, borderColor: "#e8f5e9" }} />
             {remainingBudget !== null && (
               <Box sx={{
-                mb: 2, p: 1.5, bgcolor: "#f1f8e9", borderRadius: 2, border: "1px solid #c8e6c9",
-                display: "flex", flexDirection: "column", gap: 1
+                mb: 2,
+                p: 1.5,
+                bgcolor: "#f1f8e9",
+                borderRadius: 2,
+                border: "1px solid #c8e6c9",
+                display: "flex",
+                flexDirection: "column",
+                gap: 1,
               }}>
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <Typography variant="body2" color="text.secondary">Allocated Budget (PPMP)</Typography>
-                  <Typography variant="body2" fontWeight={600} color="text.primary">
-                    ₱{budgetAllocation?.toLocaleString("en-PH", { minimumFractionDigits: 2 })}
+                  <Typography variant="body2" fontWeight={700} color="text.primary">
+                    ₱{(allocatedBudget ?? 0).toLocaleString("en-PH", { minimumFractionDigits: 2 })}
                   </Typography>
                 </Box>
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -346,6 +362,37 @@ export function AdminRequestDialog({
                     ₱{remainingBudget.toLocaleString("en-PH", { minimumFractionDigits: 2 })}
                   </Typography>
                 </Box>
+              </Box>
+            )}
+            {budgetHistory.length > 0 && (
+              <Box sx={{
+                mb: 2,
+                p: 1.5,
+                bgcolor: "#fafafa",
+                borderRadius: 2,
+                border: "1px solid #e0e0e0",
+              }}>
+                <Typography variant="body2" fontWeight={700} sx={{ mb: 1 }}>
+                  Approved Budget History
+                </Typography>
+                <List disablePadding>
+                  {budgetHistory.map((item, index) => (
+                    <ListItem key={`${item.request_id}-${item.actioned_at}-${index}`} disableGutters sx={{ py: 0.5 }}>
+                      <ListItemText
+                        primary={
+                          <Typography variant="body2" fontWeight={600}>
+                            ₱{Number(item.budget_wanted).toLocaleString("en-PH", { minimumFractionDigits: 2 })}
+                          </Typography>
+                        }
+                        secondary={
+                          <Typography variant="caption" color="text.secondary">
+                            {item.requested_by ?? "Unknown"} • {dayjs(item.actioned_at).format("MMM D, YYYY h:mm A")}
+                          </Typography>
+                        }
+                      />
+                    </ListItem>
+                  ))}
+                </List>
               </Box>
             )}
             <TextField
