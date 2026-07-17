@@ -113,9 +113,10 @@ export function AdminRequestDialog({
   const uploadedKeys = uploads.map((u) => u.key);
   const missingRequired = requiredKeys.filter((k) => !uploadedKeys.includes(k));
   const budgetAllocation = entry.budget_allocation ? Number(entry.budget_allocation) : null;
+  const remainingBudget = entry.remaining_budget !== null ? Number(entry.remaining_budget) : budgetAllocation;
   const budgetWantedNum = parseFloat(budgetWanted);
-  const budgetExceeded = budgetAllocation !== null && !isNaN(budgetWantedNum) && budgetWantedNum >= budgetAllocation;
-  const budgetValid = budgetAllocation === null || (budgetWanted !== "" && !isNaN(budgetWantedNum) && !budgetExceeded);
+  const budgetExceeded = remainingBudget !== null && !isNaN(budgetWantedNum) && budgetWantedNum > remainingBudget;
+  const budgetValid = remainingBudget === null || (budgetWanted !== "" && !isNaN(budgetWantedNum) && !budgetExceeded);
   const allRequiredUploaded = missingRequired.length === 0 && budgetValid && budgetWanted !== "" && requestorName.trim() !== "";
 
   function getUpload(key: string) {
@@ -328,15 +329,23 @@ export function AdminRequestDialog({
             {/* Budget */}
             <SectionLabel label="BUDGET REQUESTED *" />
             <Divider sx={{ mb: 2, borderColor: "#e8f5e9" }} />
-            {budgetAllocation !== null && (
+            {remainingBudget !== null && (
               <Box sx={{
                 mb: 2, p: 1.5, bgcolor: "#f1f8e9", borderRadius: 2, border: "1px solid #c8e6c9",
-                display: "flex", justifyContent: "space-between", alignItems: "center"
+                display: "flex", flexDirection: "column", gap: 1
               }}>
-                <Typography variant="body2" color="text.secondary">Allocated Budget (PPMP)</Typography>
-                <Typography variant="body2" fontWeight={700} color="#2e7d32">
-                  ₱{budgetAllocation.toLocaleString("en-PH", { minimumFractionDigits: 2 })}
-                </Typography>
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <Typography variant="body2" color="text.secondary">Allocated Budget (PPMP)</Typography>
+                  <Typography variant="body2" fontWeight={600} color="text.primary">
+                    ₱{budgetAllocation?.toLocaleString("en-PH", { minimumFractionDigits: 2 })}
+                  </Typography>
+                </Box>
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <Typography variant="body2" color="text.secondary">Remaining Budget (PPMP)</Typography>
+                  <Typography variant="body2" fontWeight={700} color="#2e7d32">
+                    ₱{remainingBudget.toLocaleString("en-PH", { minimumFractionDigits: 2 })}
+                  </Typography>
+                </Box>
               </Box>
             )}
             <TextField
@@ -344,8 +353,8 @@ export function AdminRequestDialog({
               value={budgetWanted} onChange={(e) => setBudgetWanted(e.target.value)}
               error={budgetExceeded}
               helperText={budgetExceeded
-                ? `Must be less than ₱${budgetAllocation?.toLocaleString("en-PH", { minimumFractionDigits: 2 })}`
-                : budgetValid && budgetWanted !== "" ? "✓ Within allocated budget" : "Required"}
+                ? `Must not exceed remaining budget of ₱${remainingBudget?.toLocaleString("en-PH", { minimumFractionDigits: 2 })}`
+                : budgetValid && budgetWanted !== "" ? "✓ Within remaining budget" : "Required"}
               slotProps={{
                 htmlInput: { min: 0, step: "0.01" },
                 formHelperText: { sx: { color: budgetExceeded ? "error.main" : budgetValid && budgetWanted !== "" ? "#2e7d32" : "text.secondary" } },
