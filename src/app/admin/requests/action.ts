@@ -8,7 +8,7 @@ import { createSurveyFormsForRequest } from "@/lib/survey";
 
 export async function fetchStatusTrack(requestId: string) {
   const session = await auth.api.getSession({ headers: await headers() });
-  if (!session || session.user.role !== "admin") throw new Error("Forbidden");
+  if (!session || (session.user.role !== "admin" && session.user.role !== "dept_viewer")) throw new Error("Forbidden");
 
   return (await sql`
     SELECT id, request_id, office, status, file_url, remarks, actioned_at
@@ -97,7 +97,7 @@ const wanted = Number(req.budget_wanted ?? 0);
 
 export async function fetchBudgetPreview(requestId: string) {
   const session = await auth.api.getSession({ headers: await headers() });
-  if (!session || session.user.role !== "admin") throw new Error("Forbidden");
+  if (!session || (session.user.role !== "admin" && session.user.role !== "dept_viewer")) throw new Error("Forbidden");
 
   const [row] = (await sql`
   SELECT tr.budget_wanted, p.budget_allocation, p.remaining_budget, p.ppa

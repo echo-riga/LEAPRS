@@ -10,7 +10,7 @@ export default async function AdminLayout({
 }) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) redirect("/login");
-  if (session.user.role !== "admin") redirect("/unauthorized");
+  if (session.user.role !== "admin" && session.user.role !== "dept_viewer") redirect("/unauthorized");
 
   return (
     <div

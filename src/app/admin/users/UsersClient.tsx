@@ -130,6 +130,12 @@ function InlineDropdown({
   );
 }
 
+const ROLE_LABELS: Record<string, string> = {
+  admin: "Lifelong Head",
+  user: "Employee",
+  dept_viewer: "Department Viewer",
+};
+
 // ── main ──────────────────────────────────────────────────────────────────────
 
 const emptyForm = {
@@ -268,8 +274,8 @@ async function handleDeleteDepartment(id: string) {
                     <TableCell>{user.email}</TableCell>
                     <TableCell>{user.department_name ?? "—"}</TableCell>
                     <TableCell>
-                      <Chip label={user.role} size="small"
-                        color={user.role === "admin" ? "warning" : "success"} variant="outlined" />
+                      <Chip label={ROLE_LABELS[user.role] ?? user.role} size="small"
+                        color={user.role === "admin" ? "warning" : user.role === "dept_viewer" ? "info" : "success"} variant="outlined" />
                     </TableCell>
                     <TableCell>{new Date(user.createdAt).toLocaleDateString()}</TableCell>
                     <TableCell align="center">
@@ -325,6 +331,7 @@ async function handleDeleteDepartment(id: string) {
               onChange={(e) => setForm({ ...form, role: e.target.value })}>
               <MenuItem value="user">User</MenuItem>
               <MenuItem value="admin">Admin</MenuItem>
+              <MenuItem value="dept_viewer">Department Viewer</MenuItem>
             </TextField>
           </Box>
         </DialogContent>

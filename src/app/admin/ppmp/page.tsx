@@ -1,5 +1,8 @@
 import { PpmpClient } from "@/app/admin/ppmp/PpmpClient";
 import { sql } from "@/lib/db";
+import { headers } from "next/headers";
+import { auth } from "@/lib/auth";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -48,6 +51,13 @@ export type SchoolYear = {
   name: string;
 };
 export default async function AdminPpmpPage() {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) redirect("/login");
+  if (session.user.role !== "admin" && session.user.role !== "dept_viewer") redirect("/unauthorized");
+
+  const isViewer = session.user.role === "dept_viewer";
+  const deptId = session.user.department_id;
+
   const [entries, departments, schoolYears] = await Promise.all([
     sql`
       SELECT
@@ -94,6 +104,7 @@ export default async function AdminPpmpPage() {
       LEFT JOIN school_years sy ON sy.id = p.school_year_id
       LEFT JOIN departments  d  ON d.id  = p.department_id
       LEFT JOIN "user"       u  ON u.id  = p.created_by_id
+      WHERE (${isViewer} = false OR p.department_id = ${deptId})
       ORDER BY p.created_at DESC
     `,
     sql`SELECT id, name FROM departments ORDER BY name ASC`,
@@ -105,6 +116,7 @@ export default async function AdminPpmpPage() {
       entries={entries as unknown as PpmpEntry[]}
       departments={departments as unknown as Department[]}
       schoolYears={schoolYears as unknown as SchoolYear[]}
+      user={session.user}
     />
   );
 }

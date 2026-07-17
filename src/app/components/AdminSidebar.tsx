@@ -38,6 +38,7 @@ const navItems = [
 const ROLE_LABELS: Record<string, string> = {
   admin: "Lifelong Head",
   user: "Employee",
+  dept_viewer: "Department Viewer",
 };
 
 type Props = {
@@ -133,8 +134,15 @@ export function AdminSidebar({ user }: Props) {
         disablePadding
         sx={{ display: "flex", flexDirection: "column", gap: 0.4 }}
       >
-        {navItems.map((item) => {
-          const active = pathname === item.href;
+        {navItems
+          .filter((item) => {
+            if (user.role === "dept_viewer") {
+              return !["Users", "Reports", "Settings"].includes(item.label);
+            }
+            return true;
+          })
+          .map((item) => {
+            const active = pathname === item.href;
           return (
             <ListItemButton
               key={item.href}

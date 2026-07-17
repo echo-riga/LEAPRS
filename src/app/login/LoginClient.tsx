@@ -89,7 +89,7 @@ export function LoginClient() {
     }
 
     const role = result.data?.user?.role;
-    if (role === "admin") router.push("/admin");
+    if (role === "admin" || role === "dept_viewer") router.push("/admin");
     else router.push("/user");
   }
 

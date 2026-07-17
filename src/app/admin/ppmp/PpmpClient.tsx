@@ -40,6 +40,8 @@ import {
   CalendarMonthOutlined,
   BusinessOutlined,
   AccountBalanceWalletOutlined,
+  DashboardOutlined,
+  ListAltOutlined,
 } from "@mui/icons-material";
 import {
   createPpmpAction,
@@ -273,11 +275,13 @@ function ViewDialog({
   entry,
   onClose,
   onEdit,
+  hideEdit,
 }: {
   open: boolean;
   entry: PpmpEntry | null;
   onClose: () => void;
   onEdit: () => void;
+  hideEdit?: boolean;
 }) {
   if (!entry) return null;
 
@@ -401,13 +405,15 @@ function ViewDialog({
         <Button onClick={onClose} sx={{ textTransform: "none" }}>
           Close
         </Button>
-        <Button
-          variant="contained"
-          onClick={onEdit}
-          sx={{ textTransform: "none", bgcolor: "#2e7d32" }}
-        >
-          Edit Entry
-        </Button>
+        {!hideEdit && (
+          <Button
+            variant="contained"
+            onClick={onEdit}
+            sx={{ textTransform: "none", bgcolor: "#2e7d32" }}
+          >
+            Edit Entry
+          </Button>
+        )}
       </DialogActions>
     </Dialog>
   );
@@ -757,17 +763,20 @@ function DeleteDialog({
 
 function PpmpCard({
   entry,
-  onView,
+  userRole,
   onEdit,
   onDelete,
   onRequest,
 }: {
   entry: PpmpEntry;
-  onView: () => void;
+  userRole?: string;
   onEdit: () => void;
   onDelete: () => void;
   onRequest: () => void;
 }) {
+  const router = useRouter();
+  const isRemainingNegative = entry.remaining_budget && Number(entry.remaining_budget) < 0;
+
   return (
     <Card
       elevation={0}
@@ -842,8 +851,28 @@ function PpmpCard({
             <AccountBalanceWalletOutlined
               sx={{ fontSize: 14, color: "text.disabled" }}
             />
-            <Typography variant="caption" fontWeight={600} color="#2e7d32">
-              {formatPeso(entry.budget_allocation)}
+            <Typography variant="caption" color="text.secondary">
+              Allocated:{" "}
+              <Box component="span" sx={{ fontWeight: 600, color: "#2e7d32" }}>
+                {formatPeso(entry.budget_allocation)}
+              </Box>
+            </Typography>
+          </Box>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <AccountBalanceWalletOutlined
+              sx={{ fontSize: 14, color: "text.disabled" }}
+            />
+            <Typography variant="caption" color="text.secondary">
+              Remaining:{" "}
+              <Box
+                component="span"
+                sx={{
+                  fontWeight: 600,
+                  color: isRemainingNegative ? "error.main" : "#2e7d32",
+                }}
+              >
+                {formatPeso(entry.remaining_budget ?? entry.budget_allocation)}
+              </Box>
             </Typography>
           </Box>
           {entry.school_year_name && (
@@ -860,26 +889,43 @@ function PpmpCard({
       <Divider sx={{ borderColor: "#f0f0f0" }} />
 
       <CardActions sx={{ px: 2, py: 1, justifyContent: "flex-end" }}>
-        <Tooltip title="View">
-          <IconButton size="small" onClick={onView} sx={{ color: "#2e7d32" }}>
-            <VisibilityOutlined fontSize="small" />
+        <Tooltip title="View Dashboard">
+          <IconButton
+            size="small"
+            onClick={() => router.push(`/admin?ppmp=${entry.id}`)}
+            sx={{ color: "#0d4f1c" }}
+          >
+            <DashboardOutlined fontSize="small" />
           </IconButton>
         </Tooltip>
-        <Tooltip title="Edit">
-          <IconButton size="small" onClick={onEdit} sx={{ color: "#1565c0" }}>
-            <EditOutlined fontSize="small" />
+        <Tooltip title="View Requests">
+          <IconButton
+            size="small"
+            onClick={() => router.push(`/admin/requests?aip_code=${encodeURIComponent(entry.aip_code)}`)}
+            sx={{ color: "#1976d2" }}
+          >
+            <ListAltOutlined fontSize="small" />
           </IconButton>
         </Tooltip>
-        <Tooltip title="Delete">
-          <IconButton size="small" onClick={onDelete} color="error">
-            <DeleteOutlined fontSize="small" />
-          </IconButton>
-        </Tooltip>
-        <Tooltip title="Submit Request">
-          <IconButton size="small" onClick={onRequest} sx={{ color: "#e65100" }}>
-            <AddOutlined fontSize="small" />
-          </IconButton>
-        </Tooltip>
+        {userRole !== "dept_viewer" && (
+          <>
+            <Tooltip title="Edit">
+              <IconButton size="small" onClick={onEdit} sx={{ color: "#1565c0" }}>
+                <EditOutlined fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Delete">
+              <IconButton size="small" onClick={onDelete} color="error">
+                <DeleteOutlined fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Submit Request">
+              <IconButton size="small" onClick={onRequest} sx={{ color: "#e65100" }}>
+                <AddOutlined fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </>
+        )}
       </CardActions>
     </Card>
   );
@@ -1025,10 +1071,12 @@ export function PpmpClient({
   entries: initialEntries,
   departments: initialDepartments,
   schoolYears: initialSchoolYears,
+  user,
 }: {
   entries: PpmpEntry[];
   departments: Department[];
   schoolYears: SchoolYear[];
+  user: { role: string; department_id?: string | null };
 }) {
   const router = useRouter();
   const [requestEntry, setRequestEntry] = useState<PpmpEntry | null>(null);
@@ -1039,7 +1087,7 @@ export function PpmpClient({
     useState<SchoolYear[]>(initialSchoolYears);
 
   const [search, setSearch] = useState("");
-  const [filterDept, setFilterDept] = useState("");
+  const [filterDept, setFilterDept] = useState(user.role === "dept_viewer" ? (user.department_id || "force-none-exist") : "");
   const [filterSY, setFilterSY] = useState("");
 
   const [open, setOpen] = useState(false);
@@ -1181,14 +1229,16 @@ export function PpmpClient({
             Pre-Procurement Management Plan — Training Entries
           </Typography>
         </Box>
-        <Button
-          variant="contained"
-          startIcon={<AddOutlined />}
-          onClick={openAdd}
-          sx={{ borderRadius: 2, textTransform: "none", bgcolor: "#2e7d32" }}
-        >
-          Add Entry
-        </Button>
+        {user.role !== "dept_viewer" && (
+          <Button
+            variant="contained"
+            startIcon={<AddOutlined />}
+            onClick={openAdd}
+            sx={{ borderRadius: 2, textTransform: "none", bgcolor: "#2e7d32" }}
+          >
+            Add Entry
+          </Button>
+        )}
       </Box>
 
       {/* Filters */}
@@ -1224,26 +1274,28 @@ export function PpmpClient({
             },
           }}
         />
-        <FormControl size="small" sx={{ minWidth: 200 }}>
-          <InputLabel shrink>Department</InputLabel>
-          <Select
-            value={filterDept}
-            label="Department"
-            displayEmpty
-            onChange={(e) => {
-              setFilterDept(e.target.value);
-              setPage(0);
-            }}
-            sx={{ borderRadius: 2 }}
-          >
-            <MenuItem value="">All Departments</MenuItem>
-            {departments.map((d) => (
-              <MenuItem key={d.id} value={d.id}>
-                {d.name}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+        {user.role !== "dept_viewer" && (
+          <FormControl size="small" sx={{ minWidth: 200 }}>
+            <InputLabel shrink>Department</InputLabel>
+            <Select
+              value={filterDept}
+              label="Department"
+              displayEmpty
+              onChange={(e) => {
+                setFilterDept(e.target.value);
+                setPage(0);
+              }}
+              sx={{ borderRadius: 2 }}
+            >
+              <MenuItem value="">All Departments</MenuItem>
+              {departments.map((d) => (
+                <MenuItem key={d.id} value={d.id}>
+                  {d.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        )}
 
         <FormControl size="small" sx={{ minWidth: 160 }}>
           <InputLabel shrink>School Year</InputLabel>
@@ -1319,7 +1371,7 @@ export function PpmpClient({
               <Grid size={{ xs: 12, sm: 6, md: 4 }} key={entry.aip_code}>
                 <PpmpCard
                   entry={entry}
-                  onView={() => openView(entry)}
+                  userRole={user.role}
                   onEdit={() => openEdit(entry)}
                   onDelete={() => openDelete(entry)}
                   onRequest={() => {
@@ -1358,6 +1410,7 @@ export function PpmpClient({
           setViewOpen(false);
           if (selected) openEdit(selected);
         }}
+        hideEdit={user.role === "dept_viewer"}
       />
       <EntryDialog
         open={open}

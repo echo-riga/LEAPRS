@@ -79,6 +79,12 @@ export async function updatePpmpAction(data: PpmpPayload) {
       success_indicator     = ${data.success_indicator || null},
       milestone             = ${data.milestone || null},
       budget_allocation     = ${data.budget_allocation || null},
+      remaining_budget      = ${data.budget_allocation || null} - COALESCE((
+        SELECT SUM(tr.budget_wanted)
+        FROM training_requests tr
+        JOIN request_status_track rst ON rst.request_id = tr.id AND rst.status = 'approved' AND rst.office = 'Finance'
+        WHERE tr.ppmp_id = ppmp.id
+      ), 0),
       ppa_owner             = ${data.ppa_owner || null},
       target_implementation = ${data.target_implementation || null},
       updated_at            = NOW()

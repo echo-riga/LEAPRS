@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, Fragment } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Box,
   Typography,
@@ -577,19 +578,22 @@ function SnakeTimeline({
   isFinal,
   lastStatus,
   onAddOpen,
+  userRole,
 }: {
   tracks: StatusTrack[];
   isFinal: boolean;
   lastStatus: string | undefined;
   onAddOpen: () => void;
+  userRole?: string;
 }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   // Build full list including add/final box
+  const isViewer = userRole === "dept_viewer";
   const allItems: ("track" | "add" | "final")[] = [
     ...tracks.map(() => "track" as const),
-    ...(!isFinal ? (["add"] as const) : []),
+    ...(!isFinal && !isViewer ? (["add"] as const) : []),
     ...(isFinal ? (["final"] as const) : []),
   ];
 
@@ -832,9 +836,11 @@ function SnakeTimeline({
 function RequestDetailPanel({
   request,
   onClose,
+  userRole,
 }: {
   request: AdminRequest;
   onClose: () => void;
+  userRole?: string;
 }) {
   const [tracks, setTracks] = useState<StatusTrack[] | null>(null);
   const [loadingTrack, setLoadingTrack] = useState(true);
@@ -965,6 +971,7 @@ function RequestDetailPanel({
             isFinal={isFinal}
             lastStatus={lastStatus}
             onAddOpen={() => setAddOpen(true)}
+            userRole={userRole}
           />
           {lastStatus === "completed" && (
             <Box
@@ -1046,13 +1053,21 @@ function RequestDetailPanel({
 
 // ── main ──────────────────────────────────────────────────────────────────────
 
-export function RequestsClient({ requests, departments, schoolYears }: Props) {
+export function RequestsClient({ requests, departments, schoolYears, user }: Props & { user: { role: string; department_id?: string | null } }) {
+  const searchParams = useSearchParams();
   const [search, setSearch] = useState("");
-  const [filterDept, setFilterDept] = useState("");
+  const [filterDept, setFilterDept] = useState(user.role === "dept_viewer" ? (user.department_id || "force-none-exist") : "");
   const [filterSY, setFilterSY] = useState("");
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [selected, setSelected] = useState<AdminRequest | null>(null);
+
+  useEffect(() => {
+    const aipParam = searchParams.get("aip_code");
+    if (aipParam) {
+      setSearch(aipParam);
+    }
+  }, [searchParams]);
 
   const filtered = requests.filter((r) => {
     const q = search.toLowerCase();
@@ -1120,26 +1135,28 @@ export function RequestsClient({ requests, departments, schoolYears }: Props) {
             },
           }}
         />
-        <FormControl size="small" sx={{ minWidth: 200 }}>
-          <InputLabel shrink>Department</InputLabel>
-          <Select
-            value={filterDept}
-            label="Department"
-            displayEmpty
-            onChange={(e) => {
-              setFilterDept(e.target.value);
-              setPage(0);
-            }}
-            sx={{ borderRadius: 2 }}
-          >
-            <MenuItem value="">All Departments</MenuItem>
-            {departments.map((d) => (
-              <MenuItem key={d.id} value={d.id}>
-                {d.name}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+        {user.role !== "dept_viewer" && (
+          <FormControl size="small" sx={{ minWidth: 200 }}>
+            <InputLabel shrink>Department</InputLabel>
+            <Select
+              value={filterDept}
+              label="Department"
+              displayEmpty
+              onChange={(e) => {
+                setFilterDept(e.target.value);
+                setPage(0);
+              }}
+              sx={{ borderRadius: 2 }}
+            >
+              <MenuItem value="">All Departments</MenuItem>
+              {departments.map((d) => (
+                <MenuItem key={d.id} value={d.id}>
+                  {d.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        )}
         <FormControl size="small" sx={{ minWidth: 160 }}>
           <InputLabel shrink>School Year</InputLabel>
           <Select
@@ -1326,6 +1343,7 @@ export function RequestsClient({ requests, departments, schoolYears }: Props) {
             <RequestDetailPanel
               request={selected}
               onClose={() => setSelected(null)}
+              userRole={user.role}
             />
           </Paper>
         )}

@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { sql } from "@/lib/db";
 import { RequestsClient } from "./RequestsClient";
+import { Suspense } from "react";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +34,10 @@ export type StatusTrack = {
 export default async function AdminRequestsPage() {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) redirect("/login");
-  if (session.user.role !== "admin") redirect("/unauthorized");
+  if (session.user.role !== "admin" && session.user.role !== "dept_viewer") redirect("/unauthorized");
+
+  const isViewer = session.user.role === "dept_viewer";
+  const deptId = session.user.department_id;
 
   const [requests, departments, schoolYears] = await Promise.all([
     sql`
@@ -60,6 +64,7 @@ export default async function AdminRequestsPage() {
         ORDER BY actioned_at DESC
         LIMIT 1
       ) rst ON true
+      WHERE (${isViewer} = false OR p.department_id = ${deptId})
       ORDER BY tr.submitted_at DESC
     `,
     sql`SELECT id, name FROM departments ORDER BY name ASC`,
@@ -67,10 +72,13 @@ export default async function AdminRequestsPage() {
   ]);
 
   return (
-    <RequestsClient
-      requests={requests as unknown as AdminRequest[]}
-      departments={departments as unknown as { id: string; name: string }[]}
-      schoolYears={schoolYears as unknown as { id: string; name: string }[]}
-    />
+    <Suspense fallback={<div>Loading requests...</div>}>
+      <RequestsClient
+        requests={requests as unknown as AdminRequest[]}
+        departments={departments as unknown as { id: string; name: string }[]}
+        schoolYears={schoolYears as unknown as { id: string; name: string }[]}
+        user={session.user}
+      />
+    </Suspense>
   );
 }

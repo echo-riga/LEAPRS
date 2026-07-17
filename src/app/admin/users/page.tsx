@@ -1,5 +1,8 @@
 import { AdminUsersClient } from "@/app/admin/users/UsersClient";
 import { sql } from "@/lib/db";
+import { headers } from "next/headers";
+import { auth } from "@/lib/auth";
+import { redirect } from "next/navigation";
 
 export type User = {
   id: string;
@@ -13,6 +16,10 @@ export type User = {
 };
 
 export default async function AdminUsersPage() {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) redirect("/login");
+  if (session.user.role !== "admin") redirect("/unauthorized");
+
   const [users, departments] = await Promise.all([
     sql`
       SELECT u.id, u.name, u.email, u.department_id, d.name AS department_name,

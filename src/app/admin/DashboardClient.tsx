@@ -13,6 +13,7 @@ import {
   Tooltip,
 } from "recharts";
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Box,
   Typography,
@@ -64,9 +65,22 @@ type Stats = {
   }[];
 };
 
+type PpmpOption = {
+  id: string;
+  aip_code: string;
+  ppa: string;
+  department_id: string | null;
+  school_year_id: string | null;
+};
+
 type Props = {
   departments: { id: string; name: string }[];
   schoolYears: { id: string; name: string }[];
+  ppmpOptions: PpmpOption[];
+  user: {
+    role: string;
+    department_id?: string | null;
+  };
 };
 
 function fmt(n: number) {
@@ -169,23 +183,56 @@ function ProgressBar({ value, color }: { value: number; color: string }) {
   );
 }
 
-export function AdminDashboardClient({ departments, schoolYears }: Props) {
-  const [filterDept, setFilterDept] = useState("");
+export function AdminDashboardClient({ departments, schoolYears, ppmpOptions, user }: Props) {
+  const searchParams = useSearchParams();
+  const [filterDept, setFilterDept] = useState(user.role === "dept_viewer" ? (user.department_id || "force-none-exist") : "");
   const [filterSY, setFilterSY] = useState("");
+  const [filterPpmp, setFilterPpmp] = useState("");
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const ppmpParam = searchParams.get("ppmp");
+    if (ppmpParam) {
+      setFilterPpmp(ppmpParam);
+      const option = ppmpOptions.find((o) => o.id === ppmpParam);
+      if (option) {
+        if (option.department_id && user.role !== "dept_viewer") setFilterDept(option.department_id);
+        if (option.school_year_id) setFilterSY(option.school_year_id);
+      }
+    }
+  }, [searchParams, ppmpOptions, user.role]);
+
+  const filteredPpmpOptions = ppmpOptions.filter((p) => {
+    const matchDept = user.role === "dept_viewer" ? p.department_id === user.department_id : (!filterDept || p.department_id === filterDept);
+    const matchSY = !filterSY || p.school_year_id === filterSY;
+    return matchDept && matchSY;
+  });
+
+  const selectedPpmp = ppmpOptions.find((p) => p.id === filterPpmp);
+  const effectivePpmp =
+    selectedPpmp &&
+    ((filterDept && selectedPpmp.department_id !== filterDept) ||
+      (filterSY && selectedPpmp.school_year_id !== filterSY))
+      ? ""
+      : filterPpmp;
+
+  useEffect(() => {
     setLoading(true);
-    fetchDashboardStats({ departmentId: filterDept, schoolYearId: filterSY })
+    fetchDashboardStats({
+      departmentId: filterDept,
+      schoolYearId: filterSY,
+      ppmpId: effectivePpmp,
+    })
       .then(setStats)
       .finally(() => setLoading(false));
-  }, [filterDept, filterSY]);
+  }, [filterDept, filterSY, effectivePpmp]);
 
   async function handleDownloadAip() {
     const rows = await fetchAipReport({
       departmentId: filterDept,
       schoolYearId: filterSY,
+      ppmpId: effectivePpmp,
     });
 
     const fmt = (n: number) =>
@@ -272,23 +319,25 @@ export function AdminDashboardClient({ departments, schoolYears }: Props) {
           alignItems: "flex-end",
         }}
       >
-        <FormControl size="small" sx={{ minWidth: 200 }}>
-          <InputLabel shrink>Department</InputLabel>
-          <Select
-            value={filterDept}
-            label="Department"
-            displayEmpty
-            onChange={(e) => setFilterDept(e.target.value)}
-            sx={{ borderRadius: 2 }}
-          >
-            <MenuItem value="">All Departments</MenuItem>
-            {departments.map((d) => (
-              <MenuItem key={d.id} value={d.id}>
-                {d.name}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+        {user.role !== "dept_viewer" && (
+          <FormControl size="small" sx={{ minWidth: 200 }}>
+            <InputLabel shrink>Department</InputLabel>
+            <Select
+              value={filterDept}
+              label="Department"
+              displayEmpty
+              onChange={(e) => setFilterDept(e.target.value)}
+              sx={{ borderRadius: 2 }}
+            >
+              <MenuItem value="">All Departments</MenuItem>
+              {departments.map((d) => (
+                <MenuItem key={d.id} value={d.id}>
+                  {d.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        )}
         <FormControl size="small" sx={{ minWidth: 160 }}>
           <InputLabel shrink>School Year</InputLabel>
           <Select
@@ -302,6 +351,24 @@ export function AdminDashboardClient({ departments, schoolYears }: Props) {
             {schoolYears.map((s) => (
               <MenuItem key={s.id} value={s.id}>
                 {s.name}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+
+        <FormControl size="small" sx={{ minWidth: 320 }}>
+          <InputLabel shrink>PPMP</InputLabel>
+          <Select
+            value={effectivePpmp}
+            label="PPMP"
+            displayEmpty
+            onChange={(e) => setFilterPpmp(e.target.value)}
+            sx={{ borderRadius: 2 }}
+          >
+            <MenuItem value="">All PPMP</MenuItem>
+            {filteredPpmpOptions.map((p) => (
+              <MenuItem key={p.id} value={p.id}>
+                {p.ppa} - {p.aip_code}
               </MenuItem>
             ))}
           </Select>
