@@ -303,7 +303,7 @@ async function handleDeleteDepartment(id: string) {
 
       {/* Add / Edit Dialog */}
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <DialogTitle component="div" sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <Typography fontWeight={600}>{isEdit ? "Edit User" : "Add User"}</Typography>
           <IconButton size="small" onClick={() => setOpen(false)}><CloseOutlined fontSize="small" /></IconButton>
         </DialogTitle>

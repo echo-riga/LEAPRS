@@ -333,6 +333,7 @@ function ViewDialog({
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle
+        component="div"
         sx={{
           display: "flex",
           justifyContent: "space-between",
@@ -460,6 +461,7 @@ function EntryDialog({
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle
+        component="div"
         sx={{
           display: "flex",
           justifyContent: "space-between",

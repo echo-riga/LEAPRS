@@ -190,7 +190,7 @@ export function AdminRequestDialog({
   return (
     <Dialog open={open} onClose={loading ? undefined : handleClose} maxWidth="md" fullWidth
       PaperProps={{ sx: { borderRadius: 3 } }}>
-      <DialogTitle sx={{
+      <DialogTitle component="div" sx={{
         bgcolor: "#1b5e20", color: "white", px: 3, py: 2.5,
         display: "flex", justifyContent: "space-between", alignItems: "flex-start"
       }}>

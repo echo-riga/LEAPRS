@@ -1033,7 +1033,7 @@ function RequestDetailPanel({
         fullWidth
         PaperProps={{ sx: { borderRadius: 3 } }}
       >
-        <DialogTitle sx={{ m: 0, p: 2, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <DialogTitle component="div" sx={{ m: 0, p: 2, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <Typography variant="h6" fontWeight={700} color="#1b5e20">
             Post-Training Survey & AI Summary
           </Typography>
